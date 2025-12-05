@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aquarium Monitor</title>
+    <script src="https://cdn.plot.ly/plotly-2.35.0.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/dark.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            color: #e0e0e0;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            padding: 20px 0;
+        }
+
+        header h1 {
+            font-size: 2.2rem;
+            background: linear-gradient(90deg, #00d9ff, #00ff88);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 8px;
+        }
+
+        header p {
+            color: #888;
+            font-size: 1rem;
+        }
+
+        .status-bar {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 20px;
+            font-size: 0.9rem;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #00ff88;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.offline {
+            background: #ff4444;
+            animation: none;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: rgba(255,255,255,0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 18px;
+            text-align: center;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 30px rgba(0,217,255,0.15);
+        }
+
+        .card-label {
+            font-size: 0.75rem;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 6px;
+        }
+
+        .card-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #00d9ff;
+        }
+
+        .card-unit {
+            font-size: 0.85rem;
+            color: #666;
+            margin-left: 2px;
+        }
+
+        .card.temperature .card-value { color: #ff6b6b; }
+        .card.ph .card-value { color: #4ecdc4; }
+        .card.tds .card-value { color: #ffe66d; }
+        .card.ec .card-value { color: #95e1d3; }
+        .card.salinity .card-value { color: #a8e6cf; }
+        .card.sg .card-value { color: #dcd6f7; }
+        .card.orp .card-value { color: #f38181; }
+
+        .controls {
+            background: rgba(255,255,255,0.03);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .controls-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .control-group label {
+            font-size: 0.85rem;
+            color: #888;
+        }
+
+        .quick-range {
+            display: flex;
+            gap: 5px;
+        }
+
+        .quick-range button {
+            padding: 8px 14px;
+            font-size: 0.85rem;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.15);
+            color: #ccc;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .quick-range button:hover {
+            background: rgba(255,255,255,0.15);
+        }
+
+        .quick-range button.active {
+            background: linear-gradient(90deg, #00d9ff, #00ff88);
+            color: #1a1a2e;
+            border-color: transparent;
+            font-weight: 600;
+        }
+
+        .date-input {
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.15);
+            color: #e0e0e0;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            width: 160px;
+        }
+
+        .date-input:focus {
+            outline: none;
+            border-color: #00d9ff;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(90deg, #00d9ff, #00ff88);
+            color: #1a1a2e;
+        }
+
+        .btn-primary:hover {
+            box-shadow: 0 4px 15px rgba(0,217,255,0.3);
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: rgba(255,255,255,0.1);
+            color: #e0e0e0;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255,255,255,0.18);
+        }
+
+        .actions {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .chart-container {
+            background: rgba(255,255,255,0.03);
+            border-radius: 12px;
+            padding: 15px;
+            min-height: 300px;
+        }
+
+        .chart-container.full-width {
+            grid-column: 1 / -1;
+        }
+
+        .chart-title {
+            font-size: 0.9rem;
+            color: #888;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .error-banner {
+            background: rgba(255,68,68,0.2);
+            border: 1px solid #ff4444;
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+            margin-bottom: 15px;
+            color: #ff6b6b;
+            font-size: 0.9rem;
+        }
+
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 200px;
+            color: #666;
+        }
+
+        .spinner {
+            width: 30px;
+            height: 30px;
+            border: 3px solid rgba(255,255,255,0.1);
+            border-top-color: #00d9ff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        footer {
+            text-align: center;
+            padding: 20px;
+            color: #555;
+            font-size: 0.85rem;
+        }
+
+        @media (max-width: 900px) {
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .cards {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .card-value {
+                font-size: 1.5rem;
+            }
+            header h1 {
+                font-size: 1.6rem;
+            }
+            .controls-row {
+                flex-direction: column;
+            }
+            .quick-range {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+        }
+
+        /* Flatpickr overrides */
+        .flatpickr-calendar {
+            background: #1a1a2e;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .flatpickr-day.selected {
+            background: #00d9ff;
+            border-color: #00d9ff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Tropical Aquarium Monitor</h1>
+            <p>Real-time water quality monitoring</p>
+        </header>
+
+        <div class="status-bar">
+            <div class="status-item">
+                <div class="status-dot {% if error %}offline{% endif %}" id="status-dot"></div>
+                <span id="status-text">{% if error %}Offline{% else %}Online{% endif %}</span>
+            </div>
+            <div class="status-item">
+                <span id="last-update">Updated: just now</span>
+            </div>
+        </div>
+
+        {% if error %}
+        <div class="error-banner" id="error-banner">
+            Sensor Error: {{ error }}
+        </div>
+        {% endif %}
+
+        <div class="cards">
+            <div class="card temperature">
+                <div class="card-label">Temperature</div>
+                <div class="card-value">
+                    <span id="val-temperature">{{ "%.1f"|format(reading.temperature) if reading else "--" }}</span>
+                    <span class="card-unit">°C</span>
+                </div>
+            </div>
+            <div class="card ph">
+                <div class="card-label">pH</div>
+                <div class="card-value">
+                    <span id="val-ph">{{ "%.2f"|format(reading.ph) if reading else "--" }}</span>
+                </div>
+            </div>
+            <div class="card tds">
+                <div class="card-label">TDS</div>
+                <div class="card-value">
+                    <span id="val-tds">{{ "%.0f"|format(reading.tds) if reading else "--" }}</span>
+                    <span class="card-unit">ppm</span>
+                </div>
+            </div>
+            <div class="card ec">
+                <div class="card-label">Conductivity</div>
+                <div class="card-value">
+                    <span id="val-ec">{{ "%.0f"|format(reading.ec) if reading else "--" }}</span>
+                    <span class="card-unit">µS/cm</span>
+                </div>
+            </div>
+            <div class="card salinity">
+                <div class="card-label">Salinity</div>
+                <div class="card-value">
+                    <span id="val-salinity">{{ "%.0f"|format(reading.salinity) if reading else "--" }}</span>
+                    <span class="card-unit">ppm</span>
+                </div>
+            </div>
+            <div class="card sg">
+                <div class="card-label">Specific Gravity</div>
+                <div class="card-value">
+                    <span id="val-sg">{{ "%.3f"|format(reading.sg) if reading else "--" }}</span>
+                </div>
+            </div>
+            <div class="card orp">
+                <div class="card-label">ORP</div>
+                <div class="card-value">
+                    <span id="val-orp">{{ "%.0f"|format(reading.orp) if reading else "--" }}</span>
+                    <span class="card-unit">mV</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <div class="controls-row">
+                <div class="control-group">
+                    <label>Quick Range:</label>
+                    <div class="quick-range">
+                        <button data-hours="1">1h</button>
+                        <button data-hours="6">6h</button>
+                        <button data-hours="24" class="active">24h</button>
+                        <button data-hours="72">3d</button>
+                        <button data-hours="168">7d</button>
+                        <button data-hours="720">30d</button>
+                        <button data-hours="2160">90d</button>
+                        <button data-hours="8760">1y</button>
+                    </div>
+                </div>
+            </div>
+            <div class="controls-row" style="margin-top: 15px;">
+                <div class="control-group">
+                    <label>Custom Range:</label>
+                    <input type="text" class="date-input" id="date-start" placeholder="Start date">
+                    <span style="color: #666;">to</span>
+                    <input type="text" class="date-input" id="date-end" placeholder="End date">
+                    <button class="btn btn-primary" onclick="applyCustomRange()">Apply</button>
+                </div>
+            </div>
+            <div class="actions">
+                <button class="btn btn-secondary" onclick="refreshData()">Refresh Now</button>
+                <button class="btn btn-secondary" onclick="window.location.href='/export/excel'">Export to Excel</button>
+            </div>
+        </div>
+
+        <div class="charts-grid">
+            <div class="chart-container">
+                <div class="chart-title">Temperature</div>
+                <div id="chart-temperature"><div class="loading"><div class="spinner"></div>Loading...</div></div>
+            </div>
+            <div class="chart-container">
+                <div class="chart-title">pH Level</div>
+                <div id="chart-ph"><div class="loading"><div class="spinner"></div>Loading...</div></div>
+            </div>
+            <div class="chart-container">
+                <div class="chart-title">Salinity & Conductivity</div>
+                <div id="chart-salinity"><div class="loading"><div class="spinner"></div>Loading...</div></div>
+            </div>
+            <div class="chart-container">
+                <div class="chart-title">ORP (Oxidation-Reduction Potential)</div>
+                <div id="chart-orp"><div class="loading"><div class="spinner"></div>Loading...</div></div>
+            </div>
+            <div class="chart-container full-width">
+                <div class="chart-title">TDS (Total Dissolved Solids)</div>
+                <div id="chart-tds"><div class="loading"><div class="spinner"></div>Loading...</div></div>
+            </div>
+        </div>
+
+        <footer>
+            SEAFRONT WiFi Smart Online 8-in-1 Tester &bull; Data stored in VictoriaMetrics
+        </footer>
+    </div>
+
+    <script>
+        // Chart configuration
+        const chartColors = {
+            temperature: '#ff6b6b',
+            ph: '#4ecdc4',
+            tds: '#ffe66d',
+            ec: '#95e1d3',
+            salinity: '#a8e6cf',
+            orp: '#f38181'
+        };
+
+        const baseLayout = {
+            paper_bgcolor: 'rgba(0,0,0,0)',
+            plot_bgcolor: 'rgba(0,0,0,0)',
+            font: { color: '#888', size: 11 },
+            margin: { t: 20, r: 50, b: 50, l: 60 },
+            xaxis: {
+                gridcolor: 'rgba(255,255,255,0.05)',
+                linecolor: 'rgba(255,255,255,0.1)',
+                tickformat: '%H:%M\n%b %d'
+            },
+            yaxis: {
+                gridcolor: 'rgba(255,255,255,0.08)',
+                linecolor: 'rgba(255,255,255,0.1)',
+                autorange: true
+            },
+            hovermode: 'x unified',
+            showlegend: false
+        };
+
+        const chartConfig = {
+            responsive: true,
+            displayModeBar: true,
+            modeBarButtonsToRemove: ['lasso2d', 'select2d'],
+            displaylogo: false
+        };
+
+        let currentHours = 24;
+        let customStart = null;
+        let customEnd = null;
+
+        // Initialize date pickers
+        const startPicker = flatpickr('#date-start', {
+            enableTime: true,
+            dateFormat: 'Y-m-d H:i',
+            time_24hr: true,
+            defaultDate: new Date(Date.now() - 24 * 60 * 60 * 1000),
+            theme: 'dark'
+        });
+
+        const endPicker = flatpickr('#date-end', {
+            enableTime: true,
+            dateFormat: 'Y-m-d H:i',
+            time_24hr: true,
+            defaultDate: new Date(),
+            theme: 'dark'
+        });
+
+        // Quick range button handlers
+        document.querySelectorAll('.quick-range button').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.quick-range button').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentHours = parseInt(btn.dataset.hours);
+                customStart = null;
+                customEnd = null;
+                loadHistory();
+            });
+        });
+
+        function applyCustomRange() {
+            const start = startPicker.selectedDates[0];
+            const end = endPicker.selectedDates[0];
+
+            if (!start || !end) {
+                alert('Please select both start and end dates');
+                return;
+            }
+
+            if (start >= end) {
+                alert('Start date must be before end date');
+                return;
+            }
+
+            customStart = start;
+            customEnd = end;
+            currentHours = Math.ceil((end - start) / (1000 * 60 * 60));
+
+            document.querySelectorAll('.quick-range button').forEach(b => b.classList.remove('active'));
+            loadHistory();
+        }
+
+        function createTrace(x, y, color, name) {
+            return {
+                x: x,
+                y: y,
+                type: 'scatter',
+                mode: 'lines',
+                name: name,
+                line: { color: color, width: 2, shape: 'spline' },
+                hovertemplate: '%{y:.2f}<extra></extra>'
+            };
+        }
+
+        function updateChart(elementId, traces, yaxisTitle, yaxis2Config = null) {
+            // Clear loading state
+            document.getElementById(elementId).innerHTML = '';
+
+            const layout = {
+                ...baseLayout,
+                yaxis: {
+                    ...baseLayout.yaxis,
+                    title: { text: yaxisTitle, font: { size: 11 } }
+                }
+            };
+
+            if (yaxis2Config) {
+                layout.yaxis2 = {
+                    ...baseLayout.yaxis,
+                    title: { text: yaxis2Config.title, font: { size: 11 } },
+                    overlaying: 'y',
+                    side: 'right',
+                    gridcolor: 'rgba(255,255,255,0.03)'
+                };
+                layout.showlegend = true;
+                layout.legend = { orientation: 'h', y: -0.2, x: 0.5, xanchor: 'center' };
+            }
+
+            Plotly.newPlot(elementId, traces, layout, chartConfig);
+        }
+
+        function loadHistory() {
+            const params = new URLSearchParams({ hours: currentHours });
+
+            fetch(`/api/history?${params}`)
+                .then(r => r.json())
+                .then(data => {
+                    if (!data.timestamps || data.timestamps.length === 0) {
+                        ['chart-temperature', 'chart-ph', 'chart-salinity', 'chart-orp', 'chart-tds'].forEach(id => {
+                            document.getElementById(id).innerHTML = '<div class="loading">No data available for this range</div>';
+                        });
+                        return;
+                    }
+
+                    const x = data.timestamps;
+
+                    // Temperature chart
+                    updateChart('chart-temperature',
+                        [createTrace(x, data.temperature, chartColors.temperature, 'Temperature')],
+                        'Temperature (°C)'
+                    );
+
+                    // pH chart
+                    updateChart('chart-ph',
+                        [createTrace(x, data.ph, chartColors.ph, 'pH')],
+                        'pH'
+                    );
+
+                    // Salinity & EC chart (dual axis)
+                    updateChart('chart-salinity',
+                        [
+                            { ...createTrace(x, data.salinity, chartColors.salinity, 'Salinity'), fill: 'none' },
+                            { ...createTrace(x, data.ec, chartColors.ec, 'EC'), yaxis: 'y2', fill: 'none' }
+                        ],
+                        'Salinity (ppm)',
+                        { title: 'EC (µS/cm)' }
+                    );
+
+                    // ORP chart
+                    updateChart('chart-orp',
+                        [createTrace(x, data.orp, chartColors.orp, 'ORP')],
+                        'ORP (mV)'
+                    );
+
+                    // TDS chart
+                    updateChart('chart-tds',
+                        [createTrace(x, data.tds, chartColors.tds, 'TDS')],
+                        'TDS (ppm)'
+                    );
+                })
+                .catch(err => {
+                    console.error('Failed to load history:', err);
+                });
+        }
+
+        function refreshData() {
+            fetch('/api/current')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.error) {
+                        document.getElementById('status-dot').classList.add('offline');
+                        document.getElementById('status-text').textContent = 'Offline';
+                        return;
+                    }
+
+                    document.getElementById('status-dot').classList.remove('offline');
+                    document.getElementById('status-text').textContent = 'Online';
+
+                    document.getElementById('val-temperature').textContent = data.temperature.toFixed(1);
+                    document.getElementById('val-ph').textContent = data.ph.toFixed(2);
+                    document.getElementById('val-tds').textContent = data.tds.toFixed(0);
+                    document.getElementById('val-ec').textContent = data.ec.toFixed(0);
+                    document.getElementById('val-salinity').textContent = data.salinity.toFixed(0);
+                    document.getElementById('val-sg').textContent = data.sg.toFixed(3);
+                    document.getElementById('val-orp').textContent = data.orp.toFixed(0);
+
+                    const now = new Date();
+                    document.getElementById('last-update').textContent = `Updated: ${now.toLocaleTimeString()}`;
+                })
+                .catch(err => {
+                    console.error('Refresh failed:', err);
+                    document.getElementById('status-dot').classList.add('offline');
+                    document.getElementById('status-text').textContent = 'Offline';
+                });
+        }
+
+        // Initial load
+        loadHistory();
+
+        // Auto-refresh current values every 60 seconds
+        setInterval(refreshData, 60000);
+
+        // Auto-refresh charts every 5 minutes
+        setInterval(loadHistory, 300000);
+    </script>
+</body>
+</html>

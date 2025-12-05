@@ -1,0 +1,15 @@
+[Unit]
+Description=Aquarium Monitor Web Interface
+After=network.target victoria-metrics.service
+
+[Service]
+Type=simple
+User=ian
+WorkingDirectory=/home/ian/aquarium-monitor
+Environment=FLASK_ENV=production
+ExecStart=/home/ian/tuya-env/bin/python /home/ian/aquarium-monitor/app.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

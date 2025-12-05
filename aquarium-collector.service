@@ -1,0 +1,15 @@
+[Unit]
+Description=Aquarium Data Collector
+After=network.target victoria-metrics.service
+Wants=victoria-metrics.service
+
+[Service]
+Type=simple
+User=ian
+WorkingDirectory=/home/ian/aquarium-monitor
+ExecStart=/home/ian/tuya-env/bin/python /home/ian/aquarium-monitor/collector.py
+Restart=always
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target
