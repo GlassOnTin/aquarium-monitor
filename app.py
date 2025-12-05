@@ -122,12 +122,21 @@ def query_victoria(metric, hours):
 def get_all_readings_from_vm():
     """Get all readings from VictoriaMetrics for Excel export."""
     try:
-        # Query last 365 days with 5-minute resolution
-        hours = 365 * 24
-        step = "5m"
+        # First, find out how much data we have
+        resp = requests.get(
+            f"{VM_URL}/api/v1/query",
+            params={"query": "aquarium_temperature_celsius"},
+            timeout=10
+        )
 
+        # Query all available data with appropriate step to stay under 30000 points
+        # Use 5m for up to ~100 days, 15m for up to ~300 days, 1h for longer
         all_data = {}
         timestamps = None
+
+        # Start with 30 days of 5-minute data (8640 points max)
+        hours = 30 * 24
+        step = "5m"
 
         for col, metric in VM_METRICS.items():
             resp = requests.get(
@@ -138,11 +147,11 @@ def get_all_readings_from_vm():
                     "end": "now",
                     "step": step,
                 },
-                timeout=30
+                timeout=60
             )
             data = resp.json()
 
-            if data["status"] == "success" and data["data"]["result"]:
+            if data.get("status") == "success" and data.get("data", {}).get("result"):
                 values = data["data"]["result"][0]["values"]
                 if timestamps is None:
                     timestamps = [datetime.fromtimestamp(v[0]) for v in values]
