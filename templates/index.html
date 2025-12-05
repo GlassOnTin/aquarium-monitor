@@ -17,12 +17,97 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            background: linear-gradient(180deg, #0a1628 0%, #0d2847 30%, #0f3460 60%, #1a4a6e 100%);
             min-height: 100vh;
             color: #e0e0e0;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Bubbles container */
+        .bubbles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            overflow: hidden;
+            z-index: 0;
+        }
+
+        .bubble {
+            position: absolute;
+            bottom: -100px;
+            background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.3), rgba(255,255,255,0.1) 50%, transparent 70%);
+            border-radius: 50%;
+            animation: rise linear infinite;
+            opacity: 0;
+        }
+
+        .bubble::after {
+            content: '';
+            position: absolute;
+            top: 20%;
+            left: 20%;
+            width: 30%;
+            height: 30%;
+            background: radial-gradient(circle, rgba(255,255,255,0.8), transparent);
+            border-radius: 50%;
+        }
+
+        @keyframes rise {
+            0% {
+                bottom: -100px;
+                opacity: 0;
+                transform: translateX(0) scale(1);
+            }
+            10% {
+                opacity: 0.6;
+            }
+            50% {
+                opacity: 0.4;
+            }
+            90% {
+                opacity: 0.2;
+            }
+            100% {
+                bottom: 110vh;
+                opacity: 0;
+                transform: translateX(var(--drift)) scale(0.8);
+            }
+        }
+
+        /* Underwater light rays */
+        .light-rays {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+            overflow: hidden;
+        }
+
+        .ray {
+            position: absolute;
+            top: -20%;
+            width: 150px;
+            height: 120%;
+            background: linear-gradient(180deg, rgba(0,217,255,0.15) 0%, rgba(0,217,255,0.05) 50%, transparent 100%);
+            transform-origin: top center;
+            animation: sway 8s ease-in-out infinite;
+        }
+
+        @keyframes sway {
+            0%, 100% { transform: rotate(-5deg) skewX(-5deg); }
+            50% { transform: rotate(5deg) skewX(5deg); }
         }
 
         .container {
+            position: relative;
+            z-index: 1;
             max-width: 1600px;
             margin: 0 auto;
             padding: 20px;
@@ -40,6 +125,16 @@
             -webkit-text-fill-color: transparent;
             background-clip: text;
             margin-bottom: 8px;
+        }
+
+        header h1::before {
+            content: '🐠 ';
+            -webkit-text-fill-color: initial;
+        }
+
+        header h1::after {
+            content: ' 🐟';
+            -webkit-text-fill-color: initial;
         }
 
         header p {
@@ -102,7 +197,30 @@
 
         .card:hover {
             transform: translateY(-3px);
-            box-shadow: 0 8px 30px rgba(0,217,255,0.15);
+            box-shadow: 0 8px 30px rgba(0,217,255,0.25);
+            border-color: rgba(0,217,255,0.3);
+        }
+
+        /* Subtle shimmer effect on cards */
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.05), transparent);
+            animation: shimmer 8s ease-in-out infinite;
+        }
+
+        @keyframes shimmer {
+            0%, 100% { left: -100%; }
+            50% { left: 100%; }
+        }
+
+        .card {
+            position: relative;
+            overflow: hidden;
         }
 
         .card-label {
@@ -340,6 +458,18 @@
     </style>
 </head>
 <body>
+    <!-- Underwater light rays -->
+    <div class="light-rays">
+        <div class="ray" style="left: 10%; animation-delay: 0s;"></div>
+        <div class="ray" style="left: 30%; animation-delay: 2s;"></div>
+        <div class="ray" style="left: 50%; animation-delay: 4s;"></div>
+        <div class="ray" style="left: 70%; animation-delay: 1s;"></div>
+        <div class="ray" style="left: 90%; animation-delay: 3s;"></div>
+    </div>
+
+    <!-- Animated bubbles -->
+    <div class="bubbles" id="bubbles"></div>
+
     <div class="container">
         <header>
             <h1>Tropical Aquarium Monitor</h1>
@@ -467,7 +597,7 @@
         </div>
 
         <footer>
-            SEAFRONT WiFi Smart Online 8-in-1 Tester &bull; Data stored in VictoriaMetrics
+            🐡 SEAFRONT WiFi Smart Online 8-in-1 Tester &bull; Data stored in VictoriaMetrics 🐡
         </footer>
     </div>
 
@@ -695,6 +825,46 @@
 
         // Auto-refresh charts every 5 minutes
         setInterval(loadHistory, 300000);
+
+        // Create animated bubbles
+        function createBubble() {
+            const bubble = document.createElement('div');
+            bubble.className = 'bubble';
+
+            // Random size between 10 and 50px
+            const size = Math.random() * 40 + 10;
+            bubble.style.width = size + 'px';
+            bubble.style.height = size + 'px';
+
+            // Random horizontal position
+            bubble.style.left = Math.random() * 100 + '%';
+
+            // Random drift direction
+            const drift = (Math.random() - 0.5) * 200;
+            bubble.style.setProperty('--drift', drift + 'px');
+
+            // Random animation duration (8-20 seconds)
+            const duration = Math.random() * 12 + 8;
+            bubble.style.animationDuration = duration + 's';
+
+            // Random delay
+            bubble.style.animationDelay = Math.random() * 2 + 's';
+
+            document.getElementById('bubbles').appendChild(bubble);
+
+            // Remove bubble after animation completes
+            setTimeout(() => {
+                bubble.remove();
+            }, (duration + 2) * 1000);
+        }
+
+        // Create initial bubbles
+        for (let i = 0; i < 15; i++) {
+            setTimeout(createBubble, i * 500);
+        }
+
+        // Continuously create new bubbles
+        setInterval(createBubble, 1500);
     </script>
 </body>
 </html>
