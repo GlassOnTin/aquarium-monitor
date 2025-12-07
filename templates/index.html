@@ -633,10 +633,13 @@
 
         const chartConfig = {
             responsive: true,
-            displayModeBar: true,
-            modeBarButtonsToRemove: ['lasso2d', 'select2d'],
+            displayModeBar: false,
+            staticPlot: true,
             displaylogo: false
         };
+
+        // Safe ranges (loaded from API)
+        let safeRanges = null;
 
         let currentHours = 24;
         let customStart = null;
@@ -705,16 +708,97 @@
             };
         }
 
-        function updateChart(elementId, traces, yaxisTitle, yaxis2Config = null) {
+        function createRangeShapes(metric, xRange) {
+            // Create shaded regions for safe/ideal ranges
+            if (!safeRanges || !safeRanges[metric]) return [];
+
+            const range = safeRanges[metric];
+            const shapes = [];
+
+            // Outer safe range (lighter shade)
+            shapes.push({
+                type: 'rect',
+                xref: 'paper',
+                yref: 'y',
+                x0: 0,
+                x1: 1,
+                y0: range.min,
+                y1: range.max,
+                fillcolor: 'rgba(0, 255, 136, 0.08)',
+                line: { width: 0 }
+            });
+
+            // Inner ideal range (slightly darker)
+            shapes.push({
+                type: 'rect',
+                xref: 'paper',
+                yref: 'y',
+                x0: 0,
+                x1: 1,
+                y0: range.ideal_min,
+                y1: range.ideal_max,
+                fillcolor: 'rgba(0, 255, 136, 0.12)',
+                line: { width: 0 }
+            });
+
+            // Min/max boundary lines
+            shapes.push({
+                type: 'line',
+                xref: 'paper',
+                yref: 'y',
+                x0: 0,
+                x1: 1,
+                y0: range.min,
+                y1: range.min,
+                line: { color: 'rgba(255, 100, 100, 0.4)', width: 1, dash: 'dot' }
+            });
+            shapes.push({
+                type: 'line',
+                xref: 'paper',
+                yref: 'y',
+                x0: 0,
+                x1: 1,
+                y0: range.max,
+                y1: range.max,
+                line: { color: 'rgba(255, 100, 100, 0.4)', width: 1, dash: 'dot' }
+            });
+
+            return shapes;
+        }
+
+        function getYAxisRange(metric, dataValues) {
+            // Calculate y-axis range to include both data and safe range
+            if (!safeRanges || !safeRanges[metric] || !dataValues || dataValues.length === 0) {
+                return undefined; // Let Plotly auto-range
+            }
+
+            const range = safeRanges[metric];
+            const dataMin = Math.min(...dataValues.filter(v => v !== null && !isNaN(v)));
+            const dataMax = Math.max(...dataValues.filter(v => v !== null && !isNaN(v)));
+
+            // Extend range to include safe boundaries with some padding
+            const yMin = Math.min(range.min, dataMin) * 0.98;
+            const yMax = Math.max(range.max, dataMax) * 1.02;
+
+            return [yMin, yMax];
+        }
+
+        function updateChart(elementId, traces, yaxisTitle, metric, yaxis2Config = null) {
             // Clear loading state
             document.getElementById(elementId).innerHTML = '';
+
+            // Get data values for y-axis calculation
+            const dataValues = traces[0] ? traces[0].y : [];
+            const yRange = getYAxisRange(metric, dataValues);
 
             const layout = {
                 ...baseLayout,
                 yaxis: {
                     ...baseLayout.yaxis,
-                    title: { text: yaxisTitle, font: { size: 11 } }
-                }
+                    title: { text: yaxisTitle, font: { size: 11 } },
+                    range: yRange
+                },
+                shapes: createRangeShapes(metric, null)
             };
 
             if (yaxis2Config) {
@@ -727,6 +811,8 @@
                 };
                 layout.showlegend = true;
                 layout.legend = { orientation: 'h', y: -0.2, x: 0.5, xanchor: 'center' };
+                // For dual-axis charts, don't add shapes (too complex)
+                layout.shapes = [];
             }
 
             Plotly.newPlot(elementId, traces, layout, chartConfig);
@@ -750,35 +836,40 @@
                     // Temperature chart
                     updateChart('chart-temperature',
                         [createTrace(x, data.temperature, chartColors.temperature, 'Temperature')],
-                        'Temperature (°C)'
+                        'Temperature (°C)',
+                        'temperature'
                     );
 
                     // pH chart
                     updateChart('chart-ph',
                         [createTrace(x, data.ph, chartColors.ph, 'pH')],
-                        'pH'
+                        'pH',
+                        'ph'
                     );
 
-                    // Salinity & EC chart (dual axis)
+                    // Salinity & EC chart (dual axis - no range bands)
                     updateChart('chart-salinity',
                         [
                             { ...createTrace(x, data.salinity, chartColors.salinity, 'Salinity'), fill: 'none' },
                             { ...createTrace(x, data.ec, chartColors.ec, 'EC'), yaxis: 'y2', fill: 'none' }
                         ],
                         'Salinity (ppm)',
+                        'salinity',
                         { title: 'EC (µS/cm)' }
                     );
 
                     // ORP chart
                     updateChart('chart-orp',
                         [createTrace(x, data.orp, chartColors.orp, 'ORP')],
-                        'ORP (mV)'
+                        'ORP (mV)',
+                        'orp'
                     );
 
                     // TDS chart
                     updateChart('chart-tds',
                         [createTrace(x, data.tds, chartColors.tds, 'TDS')],
-                        'TDS (ppm)'
+                        'TDS (ppm)',
+                        'tds'
                     );
                 })
                 .catch(err => {
@@ -817,8 +908,26 @@
                 });
         }
 
+        // Load safe ranges first, then load history
+        function loadRangesAndHistory() {
+            fetch('/api/ranges')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.ranges) {
+                        safeRanges = data.ranges;
+                        console.log('Loaded safe ranges for:', data.name);
+                    }
+                })
+                .catch(err => {
+                    console.warn('Could not load safe ranges:', err);
+                })
+                .finally(() => {
+                    loadHistory();
+                });
+        }
+
         // Initial load
-        loadHistory();
+        loadRangesAndHistory();
 
         // Auto-refresh current values every 60 seconds
         setInterval(refreshData, 60000);

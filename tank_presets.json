@@ -1,0 +1,80 @@
+{
+    "freshwater_tropical": {
+        "name": "Freshwater Tropical",
+        "description": "Standard tropical freshwater aquarium (community tank)",
+        "ranges": {
+            "temperature": {"min": 24.0, "max": 28.0, "unit": "°C", "ideal_min": 25.0, "ideal_max": 27.0},
+            "ph": {"min": 6.5, "max": 7.5, "unit": "", "ideal_min": 6.8, "ideal_max": 7.2},
+            "tds": {"min": 100, "max": 400, "unit": "ppm", "ideal_min": 150, "ideal_max": 300},
+            "ec": {"min": 150, "max": 600, "unit": "µS/cm", "ideal_min": 200, "ideal_max": 450},
+            "salinity": {"min": 0, "max": 100, "unit": "ppm", "ideal_min": 0, "ideal_max": 50},
+            "sg": {"min": 1.000, "max": 1.002, "unit": "", "ideal_min": 1.000, "ideal_max": 1.001},
+            "orp": {"min": 200, "max": 400, "unit": "mV", "ideal_min": 250, "ideal_max": 350}
+        }
+    },
+    "freshwater_planted": {
+        "name": "Freshwater Planted",
+        "description": "Planted freshwater aquarium with CO2 injection",
+        "ranges": {
+            "temperature": {"min": 22.0, "max": 28.0, "unit": "°C", "ideal_min": 24.0, "ideal_max": 26.0},
+            "ph": {"min": 6.0, "max": 7.2, "unit": "", "ideal_min": 6.4, "ideal_max": 6.8},
+            "tds": {"min": 100, "max": 500, "unit": "ppm", "ideal_min": 150, "ideal_max": 350},
+            "ec": {"min": 150, "max": 750, "unit": "µS/cm", "ideal_min": 200, "ideal_max": 500},
+            "salinity": {"min": 0, "max": 100, "unit": "ppm", "ideal_min": 0, "ideal_max": 50},
+            "sg": {"min": 1.000, "max": 1.002, "unit": "", "ideal_min": 1.000, "ideal_max": 1.001},
+            "orp": {"min": 150, "max": 350, "unit": "mV", "ideal_min": 200, "ideal_max": 300}
+        }
+    },
+    "saltwater_reef": {
+        "name": "Saltwater Reef",
+        "description": "Marine reef aquarium with corals",
+        "ranges": {
+            "temperature": {"min": 24.0, "max": 27.0, "unit": "°C", "ideal_min": 25.0, "ideal_max": 26.0},
+            "ph": {"min": 8.0, "max": 8.4, "unit": "", "ideal_min": 8.1, "ideal_max": 8.3},
+            "tds": {"min": 30000, "max": 40000, "unit": "ppm", "ideal_min": 32000, "ideal_max": 37000},
+            "ec": {"min": 45000, "max": 60000, "unit": "µS/cm", "ideal_min": 48000, "ideal_max": 55000},
+            "salinity": {"min": 30000, "max": 38000, "unit": "ppm", "ideal_min": 32000, "ideal_max": 35000},
+            "sg": {"min": 1.023, "max": 1.027, "unit": "", "ideal_min": 1.024, "ideal_max": 1.026},
+            "orp": {"min": 300, "max": 450, "unit": "mV", "ideal_min": 350, "ideal_max": 400}
+        }
+    },
+    "saltwater_fish_only": {
+        "name": "Saltwater Fish Only",
+        "description": "Marine fish-only with live rock (FOWLR)",
+        "ranges": {
+            "temperature": {"min": 23.0, "max": 28.0, "unit": "°C", "ideal_min": 24.0, "ideal_max": 26.0},
+            "ph": {"min": 7.8, "max": 8.4, "unit": "", "ideal_min": 8.0, "ideal_max": 8.3},
+            "tds": {"min": 28000, "max": 40000, "unit": "ppm", "ideal_min": 30000, "ideal_max": 36000},
+            "ec": {"min": 42000, "max": 60000, "unit": "µS/cm", "ideal_min": 45000, "ideal_max": 54000},
+            "salinity": {"min": 28000, "max": 36000, "unit": "ppm", "ideal_min": 30000, "ideal_max": 34000},
+            "sg": {"min": 1.020, "max": 1.026, "unit": "", "ideal_min": 1.022, "ideal_max": 1.025},
+            "orp": {"min": 250, "max": 450, "unit": "mV", "ideal_min": 300, "ideal_max": 400}
+        }
+    },
+    "freshwater_coldwater": {
+        "name": "Freshwater Coldwater",
+        "description": "Coldwater aquarium (goldfish, etc.)",
+        "ranges": {
+            "temperature": {"min": 15.0, "max": 24.0, "unit": "°C", "ideal_min": 18.0, "ideal_max": 22.0},
+            "ph": {"min": 6.5, "max": 8.0, "unit": "", "ideal_min": 7.0, "ideal_max": 7.5},
+            "tds": {"min": 100, "max": 500, "unit": "ppm", "ideal_min": 150, "ideal_max": 350},
+            "ec": {"min": 150, "max": 750, "unit": "µS/cm", "ideal_min": 200, "ideal_max": 500},
+            "salinity": {"min": 0, "max": 100, "unit": "ppm", "ideal_min": 0, "ideal_max": 50},
+            "sg": {"min": 1.000, "max": 1.002, "unit": "", "ideal_min": 1.000, "ideal_max": 1.001},
+            "orp": {"min": 200, "max": 400, "unit": "mV", "ideal_min": 250, "ideal_max": 350}
+        }
+    },
+    "brackish": {
+        "name": "Brackish",
+        "description": "Brackish water aquarium (puffers, gobies, etc.)",
+        "ranges": {
+            "temperature": {"min": 24.0, "max": 28.0, "unit": "°C", "ideal_min": 25.0, "ideal_max": 27.0},
+            "ph": {"min": 7.5, "max": 8.5, "unit": "", "ideal_min": 7.8, "ideal_max": 8.2},
+            "tds": {"min": 5000, "max": 20000, "unit": "ppm", "ideal_min": 8000, "ideal_max": 15000},
+            "ec": {"min": 7500, "max": 30000, "unit": "µS/cm", "ideal_min": 12000, "ideal_max": 22000},
+            "salinity": {"min": 5000, "max": 18000, "unit": "ppm", "ideal_min": 8000, "ideal_max": 14000},
+            "sg": {"min": 1.005, "max": 1.015, "unit": "", "ideal_min": 1.008, "ideal_max": 1.012},
+            "orp": {"min": 200, "max": 400, "unit": "mV", "ideal_min": 250, "ideal_max": 350}
+        }
+    }
+}

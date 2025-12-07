@@ -19,6 +19,7 @@ app = Flask(__name__)
 
 # Load configuration
 CONFIG_FILE = os.path.join(os.path.dirname(__file__), "config.json")
+PRESETS_FILE = os.path.join(os.path.dirname(__file__), "tank_presets.json")
 
 if os.path.exists(CONFIG_FILE):
     with open(CONFIG_FILE) as f:
@@ -27,12 +28,21 @@ if os.path.exists(CONFIG_FILE):
     DEVICE_IP = config.get("device_ip", "")
     LOCAL_KEY = config.get("local_key", "")
     VERSION = config.get("protocol_version", 3.5)
+    TANK_TYPE = config.get("tank_type", "freshwater_tropical")
 else:
     # Fallback to hardcoded values (for backwards compatibility)
     DEVICE_ID = "bfe0cad26f6fbd00c8v7dn"
     DEVICE_IP = "192.168.0.215"
     LOCAL_KEY = "v.X0.aJ~eBK/5ruE"
     VERSION = 3.5
+    TANK_TYPE = "freshwater_tropical"
+
+# Load tank presets
+if os.path.exists(PRESETS_FILE):
+    with open(PRESETS_FILE) as f:
+        TANK_PRESETS = json.load(f)
+else:
+    TANK_PRESETS = {}
 
 # VictoriaMetrics configuration
 VM_URL = "http://localhost:8428"
@@ -207,6 +217,35 @@ def api_history():
         result[col] = data["values"]
 
     return jsonify(result)
+
+
+@app.route("/api/presets")
+def api_presets():
+    """Get available tank type presets."""
+    presets_summary = {}
+    for key, preset in TANK_PRESETS.items():
+        presets_summary[key] = {
+            "name": preset["name"],
+            "description": preset["description"]
+        }
+    return jsonify({
+        "current": TANK_TYPE,
+        "presets": presets_summary
+    })
+
+
+@app.route("/api/ranges")
+def api_ranges():
+    """Get safe parameter ranges for current tank type."""
+    tank_type = request.args.get("type", TANK_TYPE)
+    if tank_type in TANK_PRESETS:
+        preset = TANK_PRESETS[tank_type]
+        return jsonify({
+            "tank_type": tank_type,
+            "name": preset["name"],
+            "ranges": preset["ranges"]
+        })
+    return jsonify({"error": f"Unknown tank type: {tank_type}"}), 404
 
 
 @app.route("/export/excel")
