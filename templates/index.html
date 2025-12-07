@@ -583,16 +583,20 @@
                 <div id="chart-ph"><div class="loading"><div class="spinner"></div>Loading...</div></div>
             </div>
             <div class="chart-container">
-                <div class="chart-title">Salinity & Conductivity</div>
+                <div class="chart-title">Salinity</div>
                 <div id="chart-salinity"><div class="loading"><div class="spinner"></div>Loading...</div></div>
+            </div>
+            <div class="chart-container">
+                <div class="chart-title">Conductivity (EC)</div>
+                <div id="chart-ec"><div class="loading"><div class="spinner"></div>Loading...</div></div>
+            </div>
+            <div class="chart-container">
+                <div class="chart-title">TDS (Total Dissolved Solids)</div>
+                <div id="chart-tds"><div class="loading"><div class="spinner"></div>Loading...</div></div>
             </div>
             <div class="chart-container">
                 <div class="chart-title">ORP (Oxidation-Reduction Potential)</div>
                 <div id="chart-orp"><div class="loading"><div class="spinner"></div>Loading...</div></div>
-            </div>
-            <div class="chart-container full-width">
-                <div class="chart-title">TDS (Total Dissolved Solids)</div>
-                <div id="chart-tds"><div class="loading"><div class="spinner"></div>Loading...</div></div>
             </div>
         </div>
 
@@ -783,7 +787,7 @@
             return [yMin, yMax];
         }
 
-        function updateChart(elementId, traces, yaxisTitle, metric, yaxis2Config = null) {
+        function updateChart(elementId, traces, yaxisTitle, metric) {
             // Clear loading state
             document.getElementById(elementId).innerHTML = '';
 
@@ -801,20 +805,6 @@
                 shapes: createRangeShapes(metric, null)
             };
 
-            if (yaxis2Config) {
-                layout.yaxis2 = {
-                    ...baseLayout.yaxis,
-                    title: { text: yaxis2Config.title, font: { size: 11 } },
-                    overlaying: 'y',
-                    side: 'right',
-                    gridcolor: 'rgba(255,255,255,0.03)'
-                };
-                layout.showlegend = true;
-                layout.legend = { orientation: 'h', y: -0.2, x: 0.5, xanchor: 'center' };
-                // For dual-axis charts, don't add shapes (too complex)
-                layout.shapes = [];
-            }
-
             Plotly.newPlot(elementId, traces, layout, chartConfig);
         }
 
@@ -825,7 +815,7 @@
                 .then(r => r.json())
                 .then(data => {
                     if (!data.timestamps || data.timestamps.length === 0) {
-                        ['chart-temperature', 'chart-ph', 'chart-salinity', 'chart-orp', 'chart-tds'].forEach(id => {
+                        ['chart-temperature', 'chart-ph', 'chart-salinity', 'chart-ec', 'chart-tds', 'chart-orp'].forEach(id => {
                             document.getElementById(id).innerHTML = '<div class="loading">No data available for this range</div>';
                         });
                         return;
@@ -847,22 +837,18 @@
                         'ph'
                     );
 
-                    // Salinity & EC chart (dual axis - no range bands)
+                    // Salinity chart
                     updateChart('chart-salinity',
-                        [
-                            { ...createTrace(x, data.salinity, chartColors.salinity, 'Salinity'), fill: 'none' },
-                            { ...createTrace(x, data.ec, chartColors.ec, 'EC'), yaxis: 'y2', fill: 'none' }
-                        ],
+                        [createTrace(x, data.salinity, chartColors.salinity, 'Salinity')],
                         'Salinity (ppm)',
-                        'salinity',
-                        { title: 'EC (µS/cm)' }
+                        'salinity'
                     );
 
-                    // ORP chart
-                    updateChart('chart-orp',
-                        [createTrace(x, data.orp, chartColors.orp, 'ORP')],
-                        'ORP (mV)',
-                        'orp'
+                    // EC chart
+                    updateChart('chart-ec',
+                        [createTrace(x, data.ec, chartColors.ec, 'EC')],
+                        'EC (µS/cm)',
+                        'ec'
                     );
 
                     // TDS chart
@@ -870,6 +856,13 @@
                         [createTrace(x, data.tds, chartColors.tds, 'TDS')],
                         'TDS (ppm)',
                         'tds'
+                    );
+
+                    // ORP chart
+                    updateChart('chart-orp',
+                        [createTrace(x, data.orp, chartColors.orp, 'ORP')],
+                        'ORP (mV)',
+                        'orp'
                     );
                 })
                 .catch(err => {
