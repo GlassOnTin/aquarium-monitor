@@ -238,14 +238,34 @@ def api_presets():
 def api_ranges():
     """Get safe parameter ranges for current tank type."""
     tank_type = request.args.get("type", TANK_TYPE)
-    if tank_type in TANK_PRESETS:
-        preset = TANK_PRESETS[tank_type]
-        return jsonify({
-            "tank_type": tank_type,
-            "name": preset["name"],
-            "ranges": preset["ranges"]
-        })
-    return jsonify({"error": f"Unknown tank type: {tank_type}"}), 404
+    if tank_type not in TANK_PRESETS:
+        return jsonify({"error": f"Unknown tank type: {tank_type}"}), 404
+
+    preset = TANK_PRESETS[tank_type]
+    ranges = dict(preset["ranges"])
+
+    # For pH, calculate dynamic range based on 7-day rolling mean
+    ph_data = query_victoria(VM_METRICS["ph"], 168)  # 7 days
+    if ph_data["values"]:
+        ph_values = [v for v in ph_data["values"] if v is not None]
+        if ph_values:
+            ph_mean = sum(ph_values) / len(ph_values)
+            # Dynamic range: ±0.5 around the mean
+            ranges["ph"] = {
+                "min": 6.5,  # Absolute low limit
+                "max": 8.5,  # Absolute high limit
+                "ideal_min": max(6.5, ph_mean - 0.5),
+                "ideal_max": min(8.5, ph_mean + 0.5),
+                "unit": "",
+                "dynamic": True,
+                "mean": round(ph_mean, 2)
+            }
+
+    return jsonify({
+        "tank_type": tank_type,
+        "name": preset["name"],
+        "ranges": ranges
+    })
 
 
 @app.route("/export/excel")
