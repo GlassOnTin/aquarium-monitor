@@ -244,13 +244,15 @@ def api_ranges():
     preset = TANK_PRESETS[tank_type]
     ranges = dict(preset["ranges"])
 
-    # For pH, calculate dynamic range based on 7-day rolling mean
+    # Calculate dynamic ranges based on 7-day rolling mean
+    # This adapts to local water conditions automatically
+
+    # pH: ±0.5 around mean (stability matters more than absolute value)
     ph_data = query_victoria(VM_METRICS["ph"], 168)  # 7 days
     if ph_data["values"]:
         ph_values = [v for v in ph_data["values"] if v is not None]
         if ph_values:
             ph_mean = sum(ph_values) / len(ph_values)
-            # Dynamic range: ±0.5 around the mean
             ranges["ph"] = {
                 "min": 6.5,  # Absolute low limit
                 "max": 8.5,  # Absolute high limit
@@ -259,6 +261,70 @@ def api_ranges():
                 "unit": "",
                 "dynamic": True,
                 "mean": round(ph_mean, 2)
+            }
+
+    # EC: ±20% around mean (varies with water source)
+    ec_data = query_victoria(VM_METRICS["ec"], 168)
+    if ec_data["values"]:
+        ec_values = [v for v in ec_data["values"] if v is not None]
+        if ec_values:
+            ec_mean = sum(ec_values) / len(ec_values)
+            ranges["ec"] = {
+                "min": max(0, ec_mean * 0.5),    # Absolute: 50% of mean
+                "max": ec_mean * 1.5,             # Absolute: 150% of mean
+                "ideal_min": ec_mean * 0.8,       # Ideal: ±20%
+                "ideal_max": ec_mean * 1.2,
+                "unit": "µS/cm",
+                "dynamic": True,
+                "mean": round(ec_mean, 0)
+            }
+
+    # TDS: ±20% around mean (tracks with EC)
+    tds_data = query_victoria(VM_METRICS["tds"], 168)
+    if tds_data["values"]:
+        tds_values = [v for v in tds_data["values"] if v is not None]
+        if tds_values:
+            tds_mean = sum(tds_values) / len(tds_values)
+            ranges["tds"] = {
+                "min": max(0, tds_mean * 0.5),
+                "max": tds_mean * 1.5,
+                "ideal_min": tds_mean * 0.8,
+                "ideal_max": tds_mean * 1.2,
+                "unit": "ppm",
+                "dynamic": True,
+                "mean": round(tds_mean, 0)
+            }
+
+    # Salinity: ±20% around mean (for freshwater, tracks minerals)
+    sal_data = query_victoria(VM_METRICS["salinity"], 168)
+    if sal_data["values"]:
+        sal_values = [v for v in sal_data["values"] if v is not None]
+        if sal_values:
+            sal_mean = sum(sal_values) / len(sal_values)
+            ranges["salinity"] = {
+                "min": max(0, sal_mean * 0.5),
+                "max": sal_mean * 1.5,
+                "ideal_min": sal_mean * 0.8,
+                "ideal_max": sal_mean * 1.2,
+                "unit": "ppm",
+                "dynamic": True,
+                "mean": round(sal_mean, 0)
+            }
+
+    # ORP: ±15% around mean (indicates water quality/oxidation)
+    orp_data = query_victoria(VM_METRICS["orp"], 168)
+    if orp_data["values"]:
+        orp_values = [v for v in orp_data["values"] if v is not None]
+        if orp_values:
+            orp_mean = sum(orp_values) / len(orp_values)
+            ranges["orp"] = {
+                "min": max(0, orp_mean * 0.7),    # Wider absolute range
+                "max": orp_mean * 1.3,
+                "ideal_min": orp_mean * 0.85,     # Tighter ideal: ±15%
+                "ideal_max": orp_mean * 1.15,
+                "unit": "mV",
+                "dynamic": True,
+                "mean": round(orp_mean, 0)
             }
 
     return jsonify({
