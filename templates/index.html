@@ -950,7 +950,7 @@
                 currentHours = parseInt(btn.dataset.hours);
                 customStart = null;
                 customEnd = null;
-                loadHistory();
+                loadRangesAndHistory();  // Reload diary events for new time range
             });
         });
 
@@ -973,7 +973,7 @@
             currentHours = Math.ceil((end - start) / (1000 * 60 * 60));
 
             document.querySelectorAll('.quick-range button').forEach(b => b.classList.remove('active'));
-            loadHistory();
+            loadRangesAndHistory();  // Reload diary events for new time range
         }
 
         function createTrace(x, y, color, name) {
