@@ -678,6 +678,13 @@
         .event-popup-close:hover {
             color: #fff;
         }
+
+        .event-popup-hint {
+            font-size: 0.7rem;
+            color: #555;
+            margin-top: 8px;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
@@ -793,7 +800,7 @@
             <div class="actions">
                 <button class="btn btn-secondary" onclick="refreshData()">Refresh Now</button>
                 <button class="btn btn-secondary" onclick="window.location.href='/export/excel'">Export to Excel</button>
-                <button class="btn btn-primary" onclick="openDiaryModal()">+ Add Event</button>
+                <button class="btn btn-primary" onclick="openDiaryModal()">📅 Events</button>
             </div>
         </div>
 
@@ -843,14 +850,15 @@
         </div>
 
         <!-- Event popup tooltip -->
-        <div id="event-popup" class="event-popup">
-            <button class="event-popup-close" onclick="hideEventPopup()">&times;</button>
+        <div id="event-popup" class="event-popup" onclick="openEditFromPopup()">
+            <button class="event-popup-close" onclick="event.stopPropagation(); hideEventPopup()">&times;</button>
             <div class="event-popup-header">
                 <span class="event-popup-emoji" id="popup-emoji"></span>
                 <span class="event-popup-type" id="popup-type"></span>
             </div>
             <div class="event-popup-time" id="popup-time"></div>
             <div class="event-popup-note" id="popup-note"></div>
+            <div class="event-popup-hint">Tap to edit</div>
         </div>
 
         <div class="charts-grid">
@@ -1160,7 +1168,10 @@
             other: 'Note'
         };
 
+        let currentPopupEventId = null;
+
         function showEventPopup(event, mouseEvent) {
+            currentPopupEventId = event.id;
             const popup = document.getElementById('event-popup');
             document.getElementById('popup-emoji').textContent = event.emoji;
             document.getElementById('popup-type').textContent = eventTypeLabels[event.event_type] || event.event_type;
@@ -1200,6 +1211,15 @@
 
         function hideEventPopup() {
             document.getElementById('event-popup').classList.remove('visible');
+        }
+
+        function openEditFromPopup() {
+            if (currentPopupEventId) {
+                hideEventPopup();
+                openDiaryModal();
+                // Small delay to ensure modal is open and entries are loaded
+                setTimeout(() => editDiaryEntry(currentPopupEventId), 100);
+            }
         }
 
         // Hide popup when clicking elsewhere
