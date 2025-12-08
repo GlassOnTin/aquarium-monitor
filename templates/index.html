@@ -1070,16 +1070,18 @@
         }
 
         function createDiaryAnnotations() {
-            // Create emoji annotations for diary events
-            return diaryEvents.map(event => ({
+            // Create emoji annotations for diary events with click capture
+            return diaryEvents.map((event, index) => ({
                 x: formatTimestampForChart(event.timestamp),
                 y: 1,
                 xref: 'x',
                 yref: 'paper',
                 text: event.emoji,
                 showarrow: false,
-                font: { size: 16 },
-                yshift: 10
+                font: { size: 20 },
+                yshift: 10,
+                captureevents: true,
+                eventDataIndex: index  // Store index to find event on click
             }));
         }
 
@@ -1121,20 +1123,12 @@
 
             Plotly.newPlot(elementId, traces, layout, chartConfig);
 
-            // Add click handler for diary events
+            // Add click handler for diary event annotations
             const chartEl = document.getElementById(elementId);
-            chartEl.on('plotly_click', function(data) {
-                if (data.points && data.points[0]) {
-                    const clickedX = new Date(data.points[0].x).getTime();
-                    // Scale click threshold based on time range (1% of visible range)
-                    const threshold = currentHours * 60 * 60 * 1000 * 0.01;
-                    const nearestEvent = diaryEvents.find(event => {
-                        const eventTime = new Date(event.timestamp).getTime();
-                        return Math.abs(eventTime - clickedX) < threshold;
-                    });
-                    if (nearestEvent) {
-                        showEventPopup(nearestEvent, data.event);
-                    }
+            chartEl.on('plotly_clickannotation', function(data) {
+                const index = data.annotation.eventDataIndex;
+                if (index !== undefined && diaryEvents[index]) {
+                    showEventPopup(diaryEvents[index], data.event);
                 }
             });
         }
