@@ -1126,8 +1126,8 @@
             chartEl.on('plotly_click', function(data) {
                 if (data.points && data.points[0]) {
                     const clickedX = new Date(data.points[0].x).getTime();
-                    // Find nearest diary event within 30 minutes
-                    const threshold = 30 * 60 * 1000; // 30 minutes in ms
+                    // Scale click threshold based on time range (1% of visible range)
+                    const threshold = currentHours * 60 * 60 * 1000 * 0.01;
                     const nearestEvent = diaryEvents.find(event => {
                         const eventTime = new Date(event.timestamp).getTime();
                         return Math.abs(eventTime - clickedX) < threshold;
@@ -1162,21 +1162,34 @@
             document.getElementById('popup-time').textContent = new Date(event.timestamp).toLocaleString();
             document.getElementById('popup-note').textContent = event.note || '(no note)';
 
+            // Get popup dimensions (use estimates if not yet rendered)
+            const popupWidth = Math.min(280, window.innerWidth - 20);
+            const popupHeight = 120;
+
             // Position popup near click, but keep on screen
             let x = mouseEvent.clientX + 10;
             let y = mouseEvent.clientY - 10;
 
             // Adjust if too close to right edge
-            if (x + 300 > window.innerWidth) {
-                x = mouseEvent.clientX - 310;
+            if (x + popupWidth > window.innerWidth - 10) {
+                x = mouseEvent.clientX - popupWidth - 10;
+            }
+            // Adjust if too close to left edge
+            if (x < 10) {
+                x = 10;
             }
             // Adjust if too close to bottom
-            if (y + 150 > window.innerHeight) {
-                y = mouseEvent.clientY - 150;
+            if (y + popupHeight > window.innerHeight - 10) {
+                y = mouseEvent.clientY - popupHeight - 10;
+            }
+            // Adjust if too close to top
+            if (y < 10) {
+                y = 10;
             }
 
             popup.style.left = x + 'px';
             popup.style.top = y + 'px';
+            popup.style.maxWidth = (window.innerWidth - 20) + 'px';
             popup.classList.add('visible');
         }
 
