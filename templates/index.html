@@ -455,6 +455,159 @@
             background: #00d9ff;
             border-color: #00d9ff;
         }
+
+        /* Modal styles */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 16px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            color: #00d9ff;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 28px;
+            cursor: pointer;
+            padding: 0;
+            line-height: 1;
+        }
+
+        .modal-close:hover {
+            color: #fff;
+        }
+
+        .modal-body {
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .diary-form {
+            background: rgba(255,255,255,0.03);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .diary-form h3 {
+            margin: 0 0 15px 0;
+            font-size: 1rem;
+            color: #aaa;
+        }
+
+        .form-group {
+            margin-bottom: 12px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #888;
+            font-size: 0.85rem;
+        }
+
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 6px;
+            color: #e0e0e0;
+            font-size: 0.9rem;
+        }
+
+        .form-group textarea {
+            min-height: 60px;
+            resize: vertical;
+        }
+
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #00d9ff;
+        }
+
+        .diary-list h3 {
+            margin: 0 0 10px 0;
+            font-size: 1rem;
+            color: #aaa;
+        }
+
+        .diary-entry {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 12px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+
+        .diary-entry-emoji {
+            font-size: 1.5rem;
+            line-height: 1;
+        }
+
+        .diary-entry-content {
+            flex: 1;
+        }
+
+        .diary-entry-time {
+            font-size: 0.75rem;
+            color: #666;
+            margin-bottom: 4px;
+        }
+
+        .diary-entry-note {
+            font-size: 0.9rem;
+            color: #ccc;
+        }
+
+        .diary-entry-delete {
+            background: none;
+            border: none;
+            color: #666;
+            cursor: pointer;
+            padding: 4px;
+            font-size: 0.8rem;
+        }
+
+        .diary-entry-delete:hover {
+            color: #ff6b6b;
+        }
     </style>
 </head>
 <body>
@@ -570,6 +723,52 @@
             <div class="actions">
                 <button class="btn btn-secondary" onclick="refreshData()">Refresh Now</button>
                 <button class="btn btn-secondary" onclick="window.location.href='/export/excel'">Export to Excel</button>
+                <button class="btn btn-primary" onclick="openDiaryModal()">+ Add Event</button>
+            </div>
+        </div>
+
+        <!-- Diary Modal -->
+        <div id="diary-modal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Tank Diary</h2>
+                    <button class="modal-close" onclick="closeDiaryModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="diary-form">
+                        <h3>Add New Event</h3>
+                        <div class="form-group">
+                            <label>Event Type:</label>
+                            <select id="event-type" onchange="updateEventEmoji()">
+                                <option value="water_change">💧 Water Change</option>
+                                <option value="feed">🍽️ Feeding</option>
+                                <option value="medication">💊 Medication</option>
+                                <option value="fertilizer">🌱 Fertilizer</option>
+                                <option value="filter_clean">🧹 Filter Cleaned</option>
+                                <option value="fish_added">🐟 Fish Added</option>
+                                <option value="fish_removed">😢 Fish Removed</option>
+                                <option value="plant_added">🌿 Plant Added</option>
+                                <option value="maintenance">🔧 Maintenance</option>
+                                <option value="test">🧪 Water Test</option>
+                                <option value="observation">👁️ Observation</option>
+                                <option value="other">📝 Note</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>When:</label>
+                            <input type="text" id="event-time" class="date-input" style="width: 100%;">
+                        </div>
+                        <div class="form-group">
+                            <label>Note (optional):</label>
+                            <textarea id="event-note" placeholder="Add details..."></textarea>
+                        </div>
+                        <button class="btn btn-primary" onclick="addDiaryEntry()" style="width: 100%;">Add Event</button>
+                    </div>
+                    <div class="diary-list">
+                        <h3>Recent Events</h3>
+                        <div id="diary-entries"></div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -645,6 +844,9 @@
         // Safe ranges (loaded from API)
         let safeRanges = null;
 
+        // Diary events (loaded from API)
+        let diaryEvents = [];
+
         let currentHours = 24;
         let customStart = null;
         let customEnd = null;
@@ -712,62 +914,91 @@
             };
         }
 
-        function createRangeShapes(metric, xRange) {
-            // Create shaded regions for safe/ideal ranges
-            if (!safeRanges || !safeRanges[metric]) return [];
-
-            const range = safeRanges[metric];
+        function createRangeShapes(metric) {
             const shapes = [];
 
-            // Outer safe range (lighter shade)
-            shapes.push({
-                type: 'rect',
-                xref: 'paper',
-                yref: 'y',
-                x0: 0,
-                x1: 1,
-                y0: range.min,
-                y1: range.max,
-                fillcolor: 'rgba(0, 255, 136, 0.08)',
-                line: { width: 0 }
-            });
+            // Add safe range shapes if available
+            if (safeRanges && safeRanges[metric]) {
+                const range = safeRanges[metric];
 
-            // Inner ideal range (slightly darker)
-            shapes.push({
-                type: 'rect',
-                xref: 'paper',
-                yref: 'y',
-                x0: 0,
-                x1: 1,
-                y0: range.ideal_min,
-                y1: range.ideal_max,
-                fillcolor: 'rgba(0, 255, 136, 0.12)',
-                line: { width: 0 }
-            });
+                // Outer safe range (lighter shade)
+                shapes.push({
+                    type: 'rect',
+                    xref: 'paper',
+                    yref: 'y',
+                    x0: 0,
+                    x1: 1,
+                    y0: range.min,
+                    y1: range.max,
+                    fillcolor: 'rgba(0, 255, 136, 0.08)',
+                    line: { width: 0 }
+                });
 
-            // Min/max boundary lines
-            shapes.push({
-                type: 'line',
-                xref: 'paper',
-                yref: 'y',
-                x0: 0,
-                x1: 1,
-                y0: range.min,
-                y1: range.min,
-                line: { color: 'rgba(255, 100, 100, 0.4)', width: 1, dash: 'dot' }
-            });
-            shapes.push({
-                type: 'line',
-                xref: 'paper',
-                yref: 'y',
-                x0: 0,
-                x1: 1,
-                y0: range.max,
-                y1: range.max,
-                line: { color: 'rgba(255, 100, 100, 0.4)', width: 1, dash: 'dot' }
+                // Inner ideal range (slightly darker)
+                shapes.push({
+                    type: 'rect',
+                    xref: 'paper',
+                    yref: 'y',
+                    x0: 0,
+                    x1: 1,
+                    y0: range.ideal_min,
+                    y1: range.ideal_max,
+                    fillcolor: 'rgba(0, 255, 136, 0.12)',
+                    line: { width: 0 }
+                });
+
+                // Min/max boundary lines
+                shapes.push({
+                    type: 'line',
+                    xref: 'paper',
+                    yref: 'y',
+                    x0: 0,
+                    x1: 1,
+                    y0: range.min,
+                    y1: range.min,
+                    line: { color: 'rgba(255, 100, 100, 0.4)', width: 1, dash: 'dot' }
+                });
+                shapes.push({
+                    type: 'line',
+                    xref: 'paper',
+                    yref: 'y',
+                    x0: 0,
+                    x1: 1,
+                    y0: range.max,
+                    y1: range.max,
+                    line: { color: 'rgba(255, 100, 100, 0.4)', width: 1, dash: 'dot' }
+                });
+            }
+
+            // Add diary event vertical lines
+            diaryEvents.forEach(event => {
+                shapes.push({
+                    type: 'line',
+                    xref: 'x',
+                    yref: 'paper',
+                    x0: event.timestamp,
+                    x1: event.timestamp,
+                    y0: 0,
+                    y1: 1,
+                    line: { color: 'rgba(255, 215, 0, 0.6)', width: 2, dash: 'dash' }
+                });
             });
 
             return shapes;
+        }
+
+        function createDiaryAnnotations() {
+            // Create emoji annotations for diary events
+            return diaryEvents.map(event => ({
+                x: event.timestamp,
+                y: 1,
+                xref: 'x',
+                yref: 'paper',
+                text: event.emoji,
+                showarrow: false,
+                font: { size: 16 },
+                yshift: 10
+            }));
         }
 
         function getYAxisRange(metric, dataValues) {
@@ -802,7 +1033,8 @@
                     title: { text: yaxisTitle, font: { size: 11 } },
                     range: yRange
                 },
-                shapes: createRangeShapes(metric, null)
+                shapes: createRangeShapes(metric),
+                annotations: createDiaryAnnotations()
             };
 
             Plotly.newPlot(elementId, traces, layout, chartConfig);
@@ -901,23 +1133,105 @@
                 });
         }
 
-        // Load safe ranges first, then load history
+        // Load safe ranges and diary, then load history
         function loadRangesAndHistory() {
-            fetch('/api/ranges')
+            Promise.all([
+                fetch('/api/ranges').then(r => r.json()).catch(() => ({})),
+                fetch(`/api/diary?hours=${currentHours}`).then(r => r.json()).catch(() => ({ entries: [] }))
+            ]).then(([rangesData, diaryData]) => {
+                if (rangesData.ranges) {
+                    safeRanges = rangesData.ranges;
+                    console.log('Loaded safe ranges for:', rangesData.name);
+                }
+                if (diaryData.entries) {
+                    diaryEvents = diaryData.entries;
+                    console.log('Loaded', diaryEvents.length, 'diary events');
+                }
+                loadHistory();
+            });
+        }
+
+        // Diary modal functions
+        let eventTimePicker = null;
+
+        function openDiaryModal() {
+            document.getElementById('diary-modal').style.display = 'flex';
+            loadDiaryEntries();
+            if (!eventTimePicker) {
+                eventTimePicker = flatpickr('#event-time', {
+                    enableTime: true,
+                    dateFormat: 'Y-m-d H:i',
+                    time_24hr: true,
+                    defaultDate: new Date(),
+                    theme: 'dark'
+                });
+            } else {
+                eventTimePicker.setDate(new Date());
+            }
+        }
+
+        function closeDiaryModal() {
+            document.getElementById('diary-modal').style.display = 'none';
+        }
+
+        function loadDiaryEntries() {
+            fetch('/api/diary')
                 .then(r => r.json())
                 .then(data => {
-                    if (data.ranges) {
-                        safeRanges = data.ranges;
-                        console.log('Loaded safe ranges for:', data.name);
+                    const container = document.getElementById('diary-entries');
+                    if (!data.entries || data.entries.length === 0) {
+                        container.innerHTML = '<p style="color: #666; font-size: 0.9rem;">No events recorded yet</p>';
+                        return;
                     }
-                })
-                .catch(err => {
-                    console.warn('Could not load safe ranges:', err);
-                })
-                .finally(() => {
-                    loadHistory();
+                    container.innerHTML = data.entries.slice(0, 20).map(entry => `
+                        <div class="diary-entry">
+                            <span class="diary-entry-emoji">${entry.emoji}</span>
+                            <div class="diary-entry-content">
+                                <div class="diary-entry-time">${new Date(entry.timestamp).toLocaleString()}</div>
+                                <div class="diary-entry-note">${entry.note || data.event_types[entry.event_type]?.label || entry.event_type}</div>
+                            </div>
+                            <button class="diary-entry-delete" onclick="deleteDiaryEntry(${entry.id})">Delete</button>
+                        </div>
+                    `).join('');
                 });
         }
+
+        function addDiaryEntry() {
+            const eventType = document.getElementById('event-type').value;
+            const note = document.getElementById('event-note').value;
+            const timestamp = eventTimePicker.selectedDates[0]?.toISOString() || new Date().toISOString();
+
+            fetch('/api/diary', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ event_type: eventType, note, timestamp })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('event-note').value = '';
+                    loadDiaryEntries();
+                    loadRangesAndHistory();  // Refresh charts with new event
+                }
+            });
+        }
+
+        function deleteDiaryEntry(id) {
+            if (!confirm('Delete this entry?')) return;
+            fetch(`/api/diary/${id}`, { method: 'DELETE' })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        loadDiaryEntries();
+                        loadRangesAndHistory();  // Refresh charts
+                    }
+                });
+        }
+
+        // Close modal on background click
+        document.getElementById('diary-modal').addEventListener('click', (e) => {
+            if (e.target.id === 'diary-modal') closeDiaryModal();
+        });
 
         // Initial load
         loadRangesAndHistory();
@@ -926,7 +1240,7 @@
         setInterval(refreshData, 60000);
 
         // Auto-refresh charts every 5 minutes
-        setInterval(loadHistory, 300000);
+        setInterval(loadRangesAndHistory, 300000);
 
         // Create animated bubbles
         function createBubble() {

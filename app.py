@@ -20,6 +20,7 @@ app = Flask(__name__)
 # Load configuration
 CONFIG_FILE = os.path.join(os.path.dirname(__file__), "config.json")
 PRESETS_FILE = os.path.join(os.path.dirname(__file__), "tank_presets.json")
+DIARY_FILE = os.path.join(os.path.dirname(__file__), "diary.json")
 
 if os.path.exists(CONFIG_FILE):
     with open(CONFIG_FILE) as f:
@@ -332,6 +333,108 @@ def api_ranges():
         "name": preset["name"],
         "ranges": ranges
     })
+
+
+# Common event types with suggested emojis
+EVENT_TYPES = {
+    "water_change": {"emoji": "💧", "label": "Water Change"},
+    "feed": {"emoji": "🍽️", "label": "Feeding"},
+    "medication": {"emoji": "💊", "label": "Medication"},
+    "fertilizer": {"emoji": "🌱", "label": "Fertilizer"},
+    "filter_clean": {"emoji": "🧹", "label": "Filter Cleaned"},
+    "fish_added": {"emoji": "🐟", "label": "Fish Added"},
+    "fish_removed": {"emoji": "😢", "label": "Fish Removed"},
+    "plant_added": {"emoji": "🌿", "label": "Plant Added"},
+    "maintenance": {"emoji": "🔧", "label": "Maintenance"},
+    "test": {"emoji": "🧪", "label": "Water Test"},
+    "observation": {"emoji": "👁️", "label": "Observation"},
+    "other": {"emoji": "📝", "label": "Note"},
+}
+
+
+def load_diary():
+    """Load diary entries from JSON file."""
+    if os.path.exists(DIARY_FILE):
+        try:
+            with open(DIARY_FILE) as f:
+                return json.load(f)
+        except (json.JSONDecodeError, IOError):
+            return []
+    return []
+
+
+def save_diary(entries):
+    """Save diary entries to JSON file."""
+    with open(DIARY_FILE, "w") as f:
+        json.dump(entries, f, indent=2)
+
+
+@app.route("/api/diary")
+def api_diary_list():
+    """Get diary entries, optionally filtered by time range."""
+    entries = load_diary()
+
+    # Optional time filtering
+    start = request.args.get("start")
+    end = request.args.get("end")
+    hours = request.args.get("hours", type=int)
+
+    if hours:
+        cutoff = datetime.now().timestamp() - (hours * 3600)
+        entries = [e for e in entries if datetime.fromisoformat(e["timestamp"]).timestamp() >= cutoff]
+    elif start:
+        entries = [e for e in entries if e["timestamp"] >= start]
+        if end:
+            entries = [e for e in entries if e["timestamp"] <= end]
+
+    return jsonify({
+        "entries": entries,
+        "event_types": EVENT_TYPES
+    })
+
+
+@app.route("/api/diary", methods=["POST"])
+def api_diary_add():
+    """Add a new diary entry."""
+    data = request.get_json()
+
+    if not data:
+        return jsonify({"error": "No data provided"}), 400
+
+    event_type = data.get("event_type", "other")
+    note = data.get("note", "")
+    timestamp = data.get("timestamp", datetime.now().isoformat())
+    emoji = data.get("emoji") or EVENT_TYPES.get(event_type, {}).get("emoji", "📝")
+
+    entry = {
+        "id": int(datetime.now().timestamp() * 1000),  # Simple unique ID
+        "timestamp": timestamp,
+        "event_type": event_type,
+        "emoji": emoji,
+        "note": note,
+    }
+
+    entries = load_diary()
+    entries.append(entry)
+    entries.sort(key=lambda x: x["timestamp"], reverse=True)  # Most recent first
+    save_diary(entries)
+
+    return jsonify({"success": True, "entry": entry})
+
+
+@app.route("/api/diary/<int:entry_id>", methods=["DELETE"])
+def api_diary_delete(entry_id):
+    """Delete a diary entry."""
+    entries = load_diary()
+    entries = [e for e in entries if e["id"] != entry_id]
+    save_diary(entries)
+    return jsonify({"success": True})
+
+
+@app.route("/api/event_types")
+def api_event_types():
+    """Get available event types with emojis."""
+    return jsonify(EVENT_TYPES)
 
 
 @app.route("/export/excel")
