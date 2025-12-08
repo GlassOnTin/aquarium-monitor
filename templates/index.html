@@ -1046,12 +1046,13 @@
 
             // Add diary event vertical lines
             diaryEvents.forEach(event => {
+                const ts = formatTimestampForChart(event.timestamp);
                 shapes.push({
                     type: 'line',
                     xref: 'x',
                     yref: 'paper',
-                    x0: event.timestamp,
-                    x1: event.timestamp,
+                    x0: ts,
+                    x1: ts,
                     y0: 0,
                     y1: 1,
                     line: { color: 'rgba(255, 215, 0, 0.6)', width: 2, dash: 'dash' }
@@ -1061,10 +1062,17 @@
             return shapes;
         }
 
+        // Convert ISO timestamp to chart format (YYYY-MM-DD HH:MM:SS)
+        function formatTimestampForChart(isoTimestamp) {
+            const d = new Date(isoTimestamp);
+            const pad = n => n.toString().padStart(2, '0');
+            return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+        }
+
         function createDiaryAnnotations() {
             // Create emoji annotations for diary events
             return diaryEvents.map(event => ({
-                x: event.timestamp,
+                x: formatTimestampForChart(event.timestamp),
                 y: 1,
                 xref: 'x',
                 yref: 'paper',
