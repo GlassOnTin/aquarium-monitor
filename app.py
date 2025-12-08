@@ -133,21 +133,12 @@ def query_victoria(metric, hours):
 def get_all_readings_from_vm():
     """Get all readings from VictoriaMetrics for Excel export."""
     try:
-        # First, find out how much data we have
-        resp = requests.get(
-            f"{VM_URL}/api/v1/query",
-            params={"query": "aquarium_temperature_celsius"},
-            timeout=10
-        )
-
-        # Query all available data with appropriate step to stay under 30000 points
-        # Use 5m for up to ~100 days, 15m for up to ~300 days, 1h for longer
-        all_data = {}
-        timestamps = None
-
         # Start with 30 days of 5-minute data (8640 points max)
         hours = 30 * 24
         step = "5m"
+
+        # Collect all data with timestamps as keys for proper alignment
+        all_rows = {}
 
         for col, metric in VM_METRICS.items():
             resp = requests.get(
@@ -164,13 +155,15 @@ def get_all_readings_from_vm():
 
             if data.get("status") == "success" and data.get("data", {}).get("result"):
                 values = data["data"]["result"][0]["values"]
-                if timestamps is None:
-                    timestamps = [datetime.fromtimestamp(v[0]) for v in values]
-                all_data[col] = [float(v[1]) for v in values]
+                for ts, val in values:
+                    if ts not in all_rows:
+                        all_rows[ts] = {"timestamp": datetime.fromtimestamp(ts)}
+                    all_rows[ts][col] = float(val)
 
-        if timestamps:
-            df = pd.DataFrame(all_data)
-            df.insert(0, "timestamp", timestamps)
+        if all_rows:
+            # Sort by timestamp and convert to DataFrame
+            sorted_rows = sorted(all_rows.values(), key=lambda x: x["timestamp"])
+            df = pd.DataFrame(sorted_rows)
             return df
         return pd.DataFrame()
     except Exception as e:
@@ -439,7 +432,7 @@ def api_event_types():
 
 @app.route("/export/excel")
 def export_excel():
-    """Export all readings to Excel from VictoriaMetrics."""
+    """Export all readings and diary to Excel."""
     df = get_all_readings_from_vm()
 
     if df.empty:
@@ -457,15 +450,40 @@ def export_excel():
         "orp": "ORP (mV)",
     })
 
+    # Load diary entries
+    diary_entries = load_diary()
+    diary_df = pd.DataFrame(diary_entries) if diary_entries else pd.DataFrame()
+
+    if not diary_df.empty:
+        # Format diary for export
+        diary_df = diary_df.rename(columns={
+            "timestamp": "Timestamp",
+            "event_type": "Event Type",
+            "emoji": "Emoji",
+            "note": "Note",
+        })
+        # Reorder and select columns
+        diary_cols = ["Timestamp", "Emoji", "Event Type", "Note"]
+        diary_df = diary_df[[c for c in diary_cols if c in diary_df.columns]]
+        # Sort by timestamp
+        diary_df = diary_df.sort_values("Timestamp", ascending=False)
+
     output = BytesIO()
     with pd.ExcelWriter(output, engine="openpyxl") as writer:
-        df.to_excel(writer, index=False, sheet_name="Aquarium Data")
-
-        # Auto-adjust column widths
-        worksheet = writer.sheets["Aquarium Data"]
+        # Sensor data sheet
+        df.to_excel(writer, index=False, sheet_name="Sensor Data")
+        worksheet = writer.sheets["Sensor Data"]
         for i, col in enumerate(df.columns):
             max_len = max(df[col].astype(str).map(len).max(), len(col)) + 2
             worksheet.column_dimensions[chr(65 + i)].width = min(max_len, 25)
+
+        # Diary sheet
+        if not diary_df.empty:
+            diary_df.to_excel(writer, index=False, sheet_name="Diary")
+            worksheet = writer.sheets["Diary"]
+            for i, col in enumerate(diary_df.columns):
+                max_len = max(diary_df[col].astype(str).map(len).max(), len(col)) + 2
+                worksheet.column_dimensions[chr(65 + i)].width = min(max_len, 40)
 
     output.seek(0)
     filename = f"aquarium_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
