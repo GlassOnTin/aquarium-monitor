@@ -608,6 +608,65 @@
         .diary-entry-delete:hover {
             color: #ff6b6b;
         }
+
+        /* Event popup tooltip */
+        .event-popup {
+            position: fixed;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            border: 1px solid rgba(0,217,255,0.4);
+            border-radius: 10px;
+            padding: 12px 16px;
+            z-index: 1001;
+            max-width: 300px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            display: none;
+        }
+
+        .event-popup.visible {
+            display: block;
+        }
+
+        .event-popup-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .event-popup-emoji {
+            font-size: 1.5rem;
+        }
+
+        .event-popup-type {
+            color: #00d9ff;
+            font-weight: 600;
+        }
+
+        .event-popup-time {
+            font-size: 0.75rem;
+            color: #666;
+            margin-bottom: 6px;
+        }
+
+        .event-popup-note {
+            font-size: 0.9rem;
+            color: #ccc;
+        }
+
+        .event-popup-close {
+            position: absolute;
+            top: 6px;
+            right: 10px;
+            background: none;
+            border: none;
+            color: #666;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .event-popup-close:hover {
+            color: #fff;
+        }
     </style>
 </head>
 <body>
@@ -772,6 +831,17 @@
             </div>
         </div>
 
+        <!-- Event popup tooltip -->
+        <div id="event-popup" class="event-popup">
+            <button class="event-popup-close" onclick="hideEventPopup()">&times;</button>
+            <div class="event-popup-header">
+                <span class="event-popup-emoji" id="popup-emoji"></span>
+                <span class="event-popup-type" id="popup-type"></span>
+            </div>
+            <div class="event-popup-time" id="popup-time"></div>
+            <div class="event-popup-note" id="popup-note"></div>
+        </div>
+
         <div class="charts-grid">
             <div class="chart-container">
                 <div class="chart-title">Temperature</div>
@@ -819,26 +889,30 @@
             paper_bgcolor: 'rgba(0,0,0,0)',
             plot_bgcolor: 'rgba(0,0,0,0)',
             font: { color: '#888', size: 11 },
-            margin: { t: 20, r: 50, b: 50, l: 60 },
+            margin: { t: 30, r: 50, b: 50, l: 60 },  // Extra top margin for emojis
             xaxis: {
                 gridcolor: 'rgba(255,255,255,0.05)',
                 linecolor: 'rgba(255,255,255,0.1)',
-                tickformat: '%H:%M\n%b %d'
+                tickformat: '%H:%M\n%b %d',
+                fixedrange: true  // Disable x-axis zoom/pan
             },
             yaxis: {
                 gridcolor: 'rgba(255,255,255,0.08)',
                 linecolor: 'rgba(255,255,255,0.1)',
-                autorange: true
+                autorange: true,
+                fixedrange: true  // Disable y-axis zoom/pan
             },
             hovermode: 'x unified',
-            showlegend: false
+            showlegend: false,
+            dragmode: false  // Disable drag
         };
 
         const chartConfig = {
             responsive: true,
             displayModeBar: false,
-            staticPlot: true,
-            displaylogo: false
+            staticPlot: false,  // Enable clicks
+            displaylogo: false,
+            scrollZoom: false   // Disable scroll zoom
         };
 
         // Safe ranges (loaded from API)
@@ -1038,7 +1112,77 @@
             };
 
             Plotly.newPlot(elementId, traces, layout, chartConfig);
+
+            // Add click handler for diary events
+            const chartEl = document.getElementById(elementId);
+            chartEl.on('plotly_click', function(data) {
+                if (data.points && data.points[0]) {
+                    const clickedX = new Date(data.points[0].x).getTime();
+                    // Find nearest diary event within 30 minutes
+                    const threshold = 30 * 60 * 1000; // 30 minutes in ms
+                    const nearestEvent = diaryEvents.find(event => {
+                        const eventTime = new Date(event.timestamp).getTime();
+                        return Math.abs(eventTime - clickedX) < threshold;
+                    });
+                    if (nearestEvent) {
+                        showEventPopup(nearestEvent, data.event);
+                    }
+                }
+            });
         }
+
+        // Event popup functions
+        const eventTypeLabels = {
+            water_change: 'Water Change',
+            feed: 'Feeding',
+            medication: 'Medication',
+            fertilizer: 'Fertilizer',
+            filter_clean: 'Filter Cleaned',
+            fish_added: 'Fish Added',
+            fish_removed: 'Fish Removed',
+            plant_added: 'Plant Added',
+            maintenance: 'Maintenance',
+            test: 'Water Test',
+            observation: 'Observation',
+            other: 'Note'
+        };
+
+        function showEventPopup(event, mouseEvent) {
+            const popup = document.getElementById('event-popup');
+            document.getElementById('popup-emoji').textContent = event.emoji;
+            document.getElementById('popup-type').textContent = eventTypeLabels[event.event_type] || event.event_type;
+            document.getElementById('popup-time').textContent = new Date(event.timestamp).toLocaleString();
+            document.getElementById('popup-note').textContent = event.note || '(no note)';
+
+            // Position popup near click, but keep on screen
+            let x = mouseEvent.clientX + 10;
+            let y = mouseEvent.clientY - 10;
+
+            // Adjust if too close to right edge
+            if (x + 300 > window.innerWidth) {
+                x = mouseEvent.clientX - 310;
+            }
+            // Adjust if too close to bottom
+            if (y + 150 > window.innerHeight) {
+                y = mouseEvent.clientY - 150;
+            }
+
+            popup.style.left = x + 'px';
+            popup.style.top = y + 'px';
+            popup.classList.add('visible');
+        }
+
+        function hideEventPopup() {
+            document.getElementById('event-popup').classList.remove('visible');
+        }
+
+        // Hide popup when clicking elsewhere
+        document.addEventListener('click', function(e) {
+            const popup = document.getElementById('event-popup');
+            if (!popup.contains(e.target) && !e.target.closest('.js-plotly-plot')) {
+                hideEventPopup();
+            }
+        });
 
         function loadHistory() {
             const params = new URLSearchParams({ hours: currentHours });
