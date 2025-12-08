@@ -596,6 +596,13 @@
             color: #ccc;
         }
 
+        .diary-entry-actions {
+            display: flex;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .diary-entry-edit,
         .diary-entry-delete {
             background: none;
             border: none;
@@ -603,6 +610,10 @@
             cursor: pointer;
             padding: 4px;
             font-size: 0.8rem;
+        }
+
+        .diary-entry-edit:hover {
+            color: #00d9ff;
         }
 
         .diary-entry-delete:hover {
@@ -1333,46 +1344,112 @@
             document.getElementById('diary-modal').style.display = 'none';
         }
 
+        // Store entries for editing
+        let diaryEntriesData = [];
+
         function loadDiaryEntries() {
             fetch('/api/diary')
                 .then(r => r.json())
                 .then(data => {
+                    diaryEntriesData = data.entries || [];
                     const container = document.getElementById('diary-entries');
-                    if (!data.entries || data.entries.length === 0) {
+                    if (diaryEntriesData.length === 0) {
                         container.innerHTML = '<p style="color: #666; font-size: 0.9rem;">No events recorded yet</p>';
                         return;
                     }
-                    container.innerHTML = data.entries.slice(0, 20).map(entry => `
+                    container.innerHTML = diaryEntriesData.slice(0, 20).map(entry => `
                         <div class="diary-entry">
                             <span class="diary-entry-emoji">${entry.emoji}</span>
                             <div class="diary-entry-content">
                                 <div class="diary-entry-time">${new Date(entry.timestamp).toLocaleString()}</div>
                                 <div class="diary-entry-note">${entry.note || data.event_types[entry.event_type]?.label || entry.event_type}</div>
                             </div>
-                            <button class="diary-entry-delete" onclick="deleteDiaryEntry(${entry.id})">Delete</button>
+                            <div class="diary-entry-actions">
+                                <button class="diary-entry-edit" onclick="editDiaryEntry(${entry.id})">Edit</button>
+                                <button class="diary-entry-delete" onclick="deleteDiaryEntry(${entry.id})">Delete</button>
+                            </div>
                         </div>
                     `).join('');
                 });
         }
+
+        let editingEntryId = null;
 
         function addDiaryEntry() {
             const eventType = document.getElementById('event-type').value;
             const note = document.getElementById('event-note').value;
             const timestamp = eventTimePicker.selectedDates[0]?.toISOString() || new Date().toISOString();
 
-            fetch('/api/diary', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ event_type: eventType, note, timestamp })
-            })
-            .then(r => r.json())
-            .then(data => {
-                if (data.success) {
-                    document.getElementById('event-note').value = '';
-                    loadDiaryEntries();
-                    loadRangesAndHistory();  // Refresh charts with new event
-                }
-            });
+            if (editingEntryId) {
+                // Update existing entry
+                fetch(`/api/diary/${editingEntryId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ event_type: eventType, note, timestamp })
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        cancelEdit();
+                        loadDiaryEntries();
+                        loadRangesAndHistory();
+                    }
+                });
+            } else {
+                // Create new entry
+                fetch('/api/diary', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ event_type: eventType, note, timestamp })
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById('event-note').value = '';
+                        loadDiaryEntries();
+                        loadRangesAndHistory();
+                    }
+                });
+            }
+        }
+
+        function editDiaryEntry(id) {
+            const entry = diaryEntriesData.find(e => e.id === id);
+            if (!entry) return;
+
+            editingEntryId = id;
+            document.getElementById('event-type').value = entry.event_type;
+            document.getElementById('event-note').value = entry.note || '';
+            eventTimePicker.setDate(new Date(entry.timestamp));
+
+            // Update button text
+            const addBtn = document.querySelector('.diary-form button[onclick="addDiaryEntry()"]');
+            addBtn.textContent = 'Update Event';
+
+            // Show cancel button
+            let cancelBtn = document.getElementById('cancel-edit-btn');
+            if (!cancelBtn) {
+                cancelBtn = document.createElement('button');
+                cancelBtn.id = 'cancel-edit-btn';
+                cancelBtn.textContent = 'Cancel';
+                cancelBtn.style.cssText = 'background: #666; margin-left: 8px;';
+                cancelBtn.onclick = cancelEdit;
+                addBtn.parentNode.appendChild(cancelBtn);
+            }
+            cancelBtn.style.display = 'inline-block';
+        }
+
+        function cancelEdit() {
+            editingEntryId = null;
+            document.getElementById('event-type').value = 'water_change';
+            document.getElementById('event-note').value = '';
+            eventTimePicker.setDate(new Date());
+
+            const addBtn = document.querySelector('.diary-form button[onclick="addDiaryEntry()"]');
+            addBtn.textContent = 'Add Event';
+
+            const cancelBtn = document.getElementById('cancel-edit-btn');
+            if (cancelBtn) cancelBtn.style.display = 'none';
         }
 
         function deleteDiaryEntry(id) {
@@ -1381,8 +1458,9 @@
                 .then(r => r.json())
                 .then(data => {
                     if (data.success) {
+                        if (editingEntryId === id) cancelEdit();
                         loadDiaryEntries();
-                        loadRangesAndHistory();  // Refresh charts
+                        loadRangesAndHistory();
                     }
                 });
         }

@@ -424,6 +424,27 @@ def api_diary_delete(entry_id):
     return jsonify({"success": True})
 
 
+@app.route("/api/diary/<int:entry_id>", methods=["PUT"])
+def api_diary_update(entry_id):
+    """Update a diary entry."""
+    data = request.get_json()
+    entries = load_diary()
+
+    for entry in entries:
+        if entry["id"] == entry_id:
+            if "event_type" in data:
+                entry["event_type"] = data["event_type"]
+                entry["emoji"] = EVENT_TYPES.get(data["event_type"], {}).get("emoji", "📝")
+            if "note" in data:
+                entry["note"] = data["note"]
+            if "timestamp" in data:
+                entry["timestamp"] = data["timestamp"]
+            save_diary(entries)
+            return jsonify({"success": True, "entry": entry})
+
+    return jsonify({"success": False, "error": "Entry not found"}), 404
+
+
 @app.route("/api/event_types")
 def api_event_types():
     """Get available event types with emojis."""
