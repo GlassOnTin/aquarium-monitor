@@ -192,7 +192,25 @@ def api_current():
         app.logger.warning("VM timestamp query failed: %s", e)
 
     if not values:
-        return jsonify({"error": "no data in VictoriaMetrics"}), 503
+        # Sensor offline: no fresh samples in VM's default lookback window.
+        # tlast_over_time (MetricsQL) returns the unix time of the last raw
+        # sample in the window, so the UI can say "offline since <when>".
+        offline_since = None
+        try:
+            r = requests.get(
+                f"{VM_URL}/api/v1/query",
+                params={"query": f"tlast_over_time({VM_METRICS['temperature']}[30d])"},
+                timeout=5,
+            ).json()
+            res = r.get("data", {}).get("result", [])
+            if res:
+                offline_since = int(float(res[0]["value"][1]))
+        except Exception as e:
+            app.logger.warning("VM offline-since query failed: %s", e)
+        return jsonify({
+            "error": "no data in VictoriaMetrics",
+            "offline_since_unix": offline_since,
+        }), 503
     return jsonify({
         **values,
         "last_updated_unix": last_updated,
@@ -530,4 +548,4 @@ def export_excel():
 
 
 if __name__ == "__main__":
-    app.run(host="192.168.0.180", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=5000, debug=True)

@@ -727,6 +727,8 @@
         </div>
         {% endif %}
 
+        <div class="error-banner" id="offline-banner" style="display: none;"></div>
+
         <div class="cards">
             <div class="card temperature">
                 <div class="card-label">Temperature</div>
@@ -1305,13 +1307,24 @@
                     const text = document.getElementById('status-text');
                     const last = document.getElementById('last-update');
 
+                    const banner = document.getElementById('offline-banner');
                     if (!ok || data.error) {
                         dot.classList.remove('stale');
                         dot.classList.add('offline');
-                        text.textContent = 'Offline';
-                        last.textContent = data.error ? `Error: ${data.error}` : 'No data';
+                        if (data.offline_since_unix) {
+                            const since = new Date(data.offline_since_unix * 1000);
+                            text.textContent = 'Sensor offline';
+                            last.textContent = `Last data: ${since.toLocaleString()}`;
+                            banner.textContent = `Sensor offline since ${since.toLocaleString()} — no data is being collected. Check the sensor's power and Wi-Fi.`;
+                        } else {
+                            text.textContent = 'Offline';
+                            last.textContent = data.error ? `Error: ${data.error}` : 'No data';
+                            banner.textContent = 'Sensor offline — no data is being collected.';
+                        }
+                        banner.style.display = '';
                         return;
                     }
+                    banner.style.display = 'none';
 
                     if (data.temperature !== undefined) document.getElementById('val-temperature').textContent = data.temperature.toFixed(1);
                     if (data.ph !== undefined) document.getElementById('val-ph').textContent = data.ph.toFixed(2);
