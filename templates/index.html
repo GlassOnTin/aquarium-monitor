@@ -173,6 +173,11 @@
             animation: none;
         }
 
+        .status-dot.stale {
+            background: #ffcc44;
+            animation: none;
+        }
+
         @keyframes pulse {
             0%, 100% { opacity: 1; }
             50% { opacity: 0.5; }
@@ -1294,33 +1299,65 @@
 
         function refreshData() {
             fetch('/api/current')
-                .then(r => r.json())
-                .then(data => {
-                    if (data.error) {
-                        document.getElementById('status-dot').classList.add('offline');
-                        document.getElementById('status-text').textContent = 'Offline';
+                .then(r => r.json().then(data => ({ ok: r.ok, data })))
+                .then(({ ok, data }) => {
+                    const dot = document.getElementById('status-dot');
+                    const text = document.getElementById('status-text');
+                    const last = document.getElementById('last-update');
+
+                    if (!ok || data.error) {
+                        dot.classList.remove('stale');
+                        dot.classList.add('offline');
+                        text.textContent = 'Offline';
+                        last.textContent = data.error ? `Error: ${data.error}` : 'No data';
                         return;
                     }
 
-                    document.getElementById('status-dot').classList.remove('offline');
-                    document.getElementById('status-text').textContent = 'Online';
+                    if (data.temperature !== undefined) document.getElementById('val-temperature').textContent = data.temperature.toFixed(1);
+                    if (data.ph !== undefined) document.getElementById('val-ph').textContent = data.ph.toFixed(2);
+                    if (data.tds !== undefined) document.getElementById('val-tds').textContent = data.tds.toFixed(0);
+                    if (data.ec !== undefined) document.getElementById('val-ec').textContent = data.ec.toFixed(0);
+                    if (data.salinity !== undefined) document.getElementById('val-salinity').textContent = data.salinity.toFixed(0);
+                    if (data.sg !== undefined) document.getElementById('val-sg').textContent = data.sg.toFixed(3);
+                    if (data.orp !== undefined) document.getElementById('val-orp').textContent = data.orp.toFixed(0);
 
-                    document.getElementById('val-temperature').textContent = data.temperature.toFixed(1);
-                    document.getElementById('val-ph').textContent = data.ph.toFixed(2);
-                    document.getElementById('val-tds').textContent = data.tds.toFixed(0);
-                    document.getElementById('val-ec').textContent = data.ec.toFixed(0);
-                    document.getElementById('val-salinity').textContent = data.salinity.toFixed(0);
-                    document.getElementById('val-sg').textContent = data.sg.toFixed(3);
-                    document.getElementById('val-orp').textContent = data.orp.toFixed(0);
+                    // Freshness vs. 300s collector interval:
+                    //   green   ≤ 1 cycle + jitter (360s)
+                    //   stale   1–3 cycles (360–900s)
+                    //   offline > 3 cycles (>900s)
+                    const age = data.age_seconds;
+                    dot.classList.remove('offline', 'stale');
+                    if (age == null) {
+                        dot.classList.add('offline');
+                        text.textContent = 'Unknown';
+                    } else if (age > 900) {
+                        dot.classList.add('offline');
+                        text.textContent = `Stale (${formatAge(age)})`;
+                    } else if (age > 360) {
+                        dot.classList.add('stale');
+                        text.textContent = `Stale (${formatAge(age)})`;
+                    } else {
+                        text.textContent = 'Online';
+                    }
 
-                    const now = new Date();
-                    document.getElementById('last-update').textContent = `Updated: ${now.toLocaleTimeString()}`;
+                    if (data.last_updated_unix) {
+                        const ts = new Date(data.last_updated_unix * 1000);
+                        last.textContent = `Updated: ${ts.toLocaleTimeString()}`;
+                    }
                 })
                 .catch(err => {
                     console.error('Refresh failed:', err);
-                    document.getElementById('status-dot').classList.add('offline');
+                    const dot = document.getElementById('status-dot');
+                    dot.classList.remove('stale');
+                    dot.classList.add('offline');
                     document.getElementById('status-text').textContent = 'Offline';
                 });
+        }
+
+        function formatAge(seconds) {
+            if (seconds < 90) return `${Math.round(seconds)}s`;
+            if (seconds < 5400) return `${Math.round(seconds / 60)} min`;
+            return `${Math.round(seconds / 3600)} h`;
         }
 
         // Load safe ranges and diary, then load history
@@ -1491,6 +1528,7 @@
         });
 
         // Initial load
+        refreshData();
         loadRangesAndHistory();
 
         // Auto-refresh current values every 60 seconds

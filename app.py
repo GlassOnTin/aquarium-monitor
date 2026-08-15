@@ -6,37 +6,35 @@ Uses VictoriaMetrics for time-series storage.
 """
 
 import os
+import sys
 import json
+import time
 from datetime import datetime
 from io import BytesIO
 
 import requests
-import tinytuya
 import pandas as pd
 from flask import Flask, render_template, jsonify, send_file, request
 
 app = Flask(__name__)
 
-# Load configuration
+# Load configuration — fail loud if missing or incomplete.
+# Exit code 2 is paired with RestartPreventExitStatus=2 in the systemd unit.
 CONFIG_FILE = os.path.join(os.path.dirname(__file__), "config.json")
 PRESETS_FILE = os.path.join(os.path.dirname(__file__), "tank_presets.json")
 DIARY_FILE = os.path.join(os.path.dirname(__file__), "diary.json")
 
-if os.path.exists(CONFIG_FILE):
-    with open(CONFIG_FILE) as f:
-        config = json.load(f)
-    DEVICE_ID = config.get("device_id", "")
-    DEVICE_IP = config.get("device_ip", "")
-    LOCAL_KEY = config.get("local_key", "")
-    VERSION = config.get("protocol_version", 3.5)
-    TANK_TYPE = config.get("tank_type", "freshwater_tropical")
-else:
-    # Fallback to hardcoded values (for backwards compatibility)
-    DEVICE_ID = "bfe0cad26f6fbd00c8v7dn"
-    DEVICE_IP = "192.168.0.215"
-    LOCAL_KEY = "v.X0.aJ~eBK/5ruE"
-    VERSION = 3.5
-    TANK_TYPE = "freshwater_tropical"
+if not os.path.exists(CONFIG_FILE):
+    app.logger.error("config.json not found at %s. Run setup-tuya.py.", CONFIG_FILE)
+    sys.exit(2)
+with open(CONFIG_FILE) as f:
+    config = json.load(f)
+_required = ("device_id", "device_ip", "local_key")
+_missing = [k for k in _required if not config.get(k)]
+if _missing:
+    app.logger.error("config.json is missing required fields: %s", _missing)
+    sys.exit(2)
+TANK_TYPE = config.get("tank_type", "freshwater_tropical")
 
 # Load tank presets
 if os.path.exists(PRESETS_FILE):
@@ -69,27 +67,6 @@ VM_METRICS = {
     "sg": "aquarium_specific_gravity",
     "orp": "aquarium_orp_mv",
 }
-
-
-def get_sensor_reading():
-    """Fetch current reading from the aquarium sensor."""
-    try:
-        d = tinytuya.Device(DEVICE_ID, DEVICE_IP, LOCAL_KEY, version=VERSION)
-        d.set_socketTimeout(5)
-        result = d.status()
-
-        if "Error" in result:
-            return None, result["Error"]
-
-        dps = result.get("dps", {})
-        reading = {}
-        for dp_id, (col, name, unit, scale) in DPS_MAP.items():
-            if dp_id in dps:
-                reading[col] = dps[dp_id] * scale
-
-        return reading, None
-    except Exception as e:
-        return None, str(e)
 
 
 def query_victoria(metric, hours):
@@ -173,18 +150,54 @@ def get_all_readings_from_vm():
 
 @app.route("/")
 def index():
-    """Main dashboard page."""
-    reading, error = get_sensor_reading()
-    return render_template("index.html", reading=reading, error=error, dps_map=DPS_MAP)
+    """Main dashboard page (shell only — values populated by /api/current)."""
+    return render_template("index.html", reading=None, error=None, dps_map=DPS_MAP)
 
 
 @app.route("/api/current")
 def api_current():
-    """Get current sensor reading."""
-    reading, error = get_sensor_reading()
-    if error:
-        return jsonify({"error": error}), 500
-    return jsonify(reading)
+    """Latest reading per metric from VictoriaMetrics, plus freshness.
+
+    VM's /api/v1/query stamps the value with the eval time, not the sample's
+    write time, so we use timestamp(metric) — a PromQL function that returns
+    the sample's actual unix timestamp — to compute real freshness.
+    """
+    values = {}
+    for col, metric in VM_METRICS.items():
+        try:
+            r = requests.get(
+                f"{VM_URL}/api/v1/query",
+                params={"query": metric},
+                timeout=5,
+            ).json()
+            res = r.get("data", {}).get("result", [])
+            if res:
+                values[col] = float(res[0]["value"][1])
+        except Exception as e:
+            app.logger.warning("VM query failed for %s: %s", metric, e)
+
+    last_updated = None
+    try:
+        # All 7 metrics are written together by the collector, so any one
+        # gives the same write time. Use temperature as the canonical probe.
+        r = requests.get(
+            f"{VM_URL}/api/v1/query",
+            params={"query": f"timestamp({VM_METRICS['temperature']})"},
+            timeout=5,
+        ).json()
+        res = r.get("data", {}).get("result", [])
+        if res:
+            last_updated = int(float(res[0]["value"][1]))
+    except Exception as e:
+        app.logger.warning("VM timestamp query failed: %s", e)
+
+    if not values:
+        return jsonify({"error": "no data in VictoriaMetrics"}), 503
+    return jsonify({
+        **values,
+        "last_updated_unix": last_updated,
+        "age_seconds": (int(time.time()) - last_updated) if last_updated else None,
+    })
 
 
 @app.route("/api/history")

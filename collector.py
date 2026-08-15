@@ -5,6 +5,7 @@ Reads sensor data and writes to VictoriaMetrics every 5 minutes.
 """
 
 import os
+import sys
 import json
 import time
 import logging
@@ -18,22 +19,25 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
-# Load configuration
+# Load configuration — fail loud if missing or incomplete.
+# Exit code 2 is paired with RestartPreventExitStatus=2 in the systemd unit
+# so a config error halts the service instead of restart-looping.
 CONFIG_FILE = os.path.join(os.path.dirname(__file__), "config.json")
 
-if os.path.exists(CONFIG_FILE):
-    with open(CONFIG_FILE) as f:
-        config = json.load(f)
-    DEVICE_ID = config.get("device_id", "")
-    DEVICE_IP = config.get("device_ip", "")
-    LOCAL_KEY = config.get("local_key", "")
-    VERSION = config.get("protocol_version", 3.5)
-else:
-    # Fallback to hardcoded values (for backwards compatibility)
-    DEVICE_ID = "bfe0cad26f6fbd00c8v7dn"
-    DEVICE_IP = "192.168.0.215"
-    LOCAL_KEY = "v.X0.aJ~eBK/5ruE"
-    VERSION = 3.5
+if not os.path.exists(CONFIG_FILE):
+    log.error("config.json not found at %s. Run setup-tuya.py.", CONFIG_FILE)
+    sys.exit(2)
+with open(CONFIG_FILE) as f:
+    config = json.load(f)
+_required = ("device_id", "device_ip", "local_key")
+_missing = [k for k in _required if not config.get(k)]
+if _missing:
+    log.error("config.json is missing required fields: %s", _missing)
+    sys.exit(2)
+DEVICE_ID = config["device_id"]
+DEVICE_IP = config["device_ip"]
+LOCAL_KEY = config["local_key"]
+VERSION = config.get("protocol_version", 3.5)
 
 # VictoriaMetrics configuration
 VM_URL = "http://localhost:8428/api/v1/import/prometheus"

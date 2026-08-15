@@ -6,10 +6,12 @@ Wants=victoria-metrics.service
 [Service]
 Type=simple
 User=ian
-WorkingDirectory=/home/ian/aquarium-monitor
-ExecStart=/home/ian/tuya-env/bin/python /home/ian/aquarium-monitor/collector.py
+WorkingDirectory=/home/ian/Code/aquarium-monitor
+ExecStartPre=/home/ian/Code/aquarium-monitor/ensure-venv.sh
+ExecStart=/home/ian/tuya-env/bin/python /home/ian/Code/aquarium-monitor/collector.py
 Restart=always
 RestartSec=30
+RestartPreventExitStatus=2
 
 [Install]
 WantedBy=multi-user.target
