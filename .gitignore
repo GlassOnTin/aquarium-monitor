@@ -13,6 +13,10 @@ tinytuya.json
 data/
 *.db
 
+# Runtime data written by the app
+diary.json
+snapshot.json
+
 # IDE
 .vscode/
 .idea/
